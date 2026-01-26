@@ -28,7 +28,9 @@ def main():
         print("✓ Successfully imported ACEStepPipeline")
 
         # Determine device and dtype
-        device = "cpu"  # Force CPU for container builds
+        # Force CPU for container builds to ensure compatibility across different
+        # host environments and because CUDA is typically not available during build
+        device = "cpu"
         torch_dtype = torch.float32
         print(f"✓ Using device: {device}, dtype: {torch_dtype}")
 

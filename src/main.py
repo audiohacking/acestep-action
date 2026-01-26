@@ -32,7 +32,7 @@ def get_input(name: str, required: bool = False, default: str = "") -> str:
     env_name = f"INPUT_{name.upper()}"
     value = os.environ.get(env_name, default)
     
-    if required and not value:
+    if required and value == "":
         raise ValueError(f"Input required and not supplied: {name}")
     
     return value
@@ -52,8 +52,8 @@ def set_output(name: str, value: str) -> None:
         with open(github_output, "a") as f:
             f.write(f"{name}={value}\n")
     else:
-        # Fallback for local testing
-        print(f"::set-output name={name}::{value}")
+        # Fallback for local testing (without deprecated syntax)
+        print(f"{name}={value}")
 
 
 def setup_cache(cache_path: str) -> Path:

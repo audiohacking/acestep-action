@@ -140,6 +140,7 @@ Example:
 acestep-action/
 ├── action.yml                    # Action metadata and configuration
 ├── Dockerfile                    # Container definition with pre-downloaded model
+├── download_model.py             # Model pre-download script for Docker build
 ├── requirements.txt              # Python dependencies
 ├── src/
 │   └── main.py                  # Main action script
@@ -157,6 +158,12 @@ To build locally:
 
 ```bash
 docker build -t acestep-action .
+```
+
+To build with a different model version:
+
+```bash
+docker build -t acestep-action --build-arg ACESTEP_MODEL_ID=ACE-Step/ACE-Step-v2-7B .
 ```
 
 To publish manually (requires appropriate permissions):

@@ -20,18 +20,24 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Allow model ID to be customized at build time
+ARG ACESTEP_MODEL_ID=ACE-Step/ACE-Step-v1-3.5B
+
 # Pre-download the ACE-Step model to include in the image
 # This significantly speeds up action execution by avoiding model downloads
 ENV HF_HOME=/action/models
 ENV TRANSFORMERS_CACHE=/action/models/transformers
 ENV HF_DATASETS_CACHE=/action/models/datasets
+ENV HF_HUB_OFFLINE=0
+ENV HF_HUB_DISABLE_TELEMETRY=1
+ENV ACESTEP_MODEL_ID=${ACESTEP_MODEL_ID}
 
-RUN mkdir -p /action/models && \
-    python -c "from acestep.pipeline_ace_step import ACEStepPipeline; \
-    import torch; \
-    print('Pre-downloading ACE-Step model...'); \
-    model = ACEStepPipeline.from_pretrained('ACE-Step/ACE-Step-v1-3.5B', torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32, device='cpu'); \
-    print('Model downloaded and cached in image')" || echo "Model pre-download skipped (may not be available yet)"
+# Create directories for model cache
+RUN mkdir -p /action/models/transformers /action/models/datasets
+
+# Copy and run the model download script
+COPY download_model.py .
+RUN python download_model.py && rm download_model.py
 
 # Copy action source code
 COPY src/ ./src/

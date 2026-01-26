@@ -1,14 +1,16 @@
 # Ace-Step Audio Generation Action
 
-A GitHub Action that generates audio files using the Ace-Step model. This action automatically handles model downloads with intelligent caching for efficient repeated runs.
+A GitHub Action that generates music from text prompts using the ACE-Step model. This action automatically handles model downloads with intelligent caching for efficient repeated runs, and outputs high-quality MP3 files.
 
 ## Features
 
-- 🎵 Generate high-quality audio from text
+- 🎵 Generate high-quality music from text prompts
+- 🎹 Support for instrumental and lyric-based generation
 - 🚀 Automatic model caching for fast repeated runs
 - 🐳 Containerized execution for consistency
 - 📦 Returns MP3 files ready for use in your workflow
 - ⚡ Easy integration with GitHub Actions workflows
+- 🎲 Reproducible generation with seed parameter
 
 ## Usage
 
@@ -28,7 +30,7 @@ jobs:
         id: audio
         uses: audiohacking/acestep-action@v1
         with:
-          text: 'Hello, welcome to our project!'
+          prompt: 'upbeat electronic chiptune music'
           
       - name: Use generated audio
         run: echo "Audio saved to ${{ steps.audio.outputs.audio_file }}"
@@ -61,10 +63,12 @@ jobs:
         id: audio
         uses: audiohacking/acestep-action@v1
         with:
-          text: 'Your text here'
-          voice: 'default'
+          prompt: 'calm ambient piano melody'
+          lyrics: '[inst]'
+          duration: '30.0'
+          seed: '42'
           model_cache_path: '~/.cache/acestep'
-          output_path: 'output.mp3'
+          output_path: 'generated_music.mp3'
       
       # Upload the generated audio as an artifact
       - name: Upload audio
@@ -78,8 +82,10 @@ jobs:
 
 | Input | Description | Required | Default |
 |-------|-------------|----------|---------|
-| `text` | Text to convert to speech | Yes | - |
-| `voice` | Voice model to use for generation | No | `default` |
+| `prompt` | Text prompt for music generation | No | `chiptune` |
+| `lyrics` | Lyrics for the generation (use `[inst]` for instrumental) | No | `[inst]` |
+| `duration` | Duration of the generated audio in seconds | No | `20.0` |
+| `seed` | Random seed for reproducible generation | No | `None` (random) |
 | `model_cache_path` | Path to cache the model files | No | `~/.cache/acestep` |
 | `output_path` | Output path for the generated MP3 file | No | `output.mp3` |
 

@@ -7,13 +7,21 @@ branding:
   color: 'purple'
 
 inputs:
-  text:
-    description: 'Text to convert to speech'
-    required: true
-  voice:
-    description: 'Voice model to use for generation'
+  prompt:
+    description: 'Text prompt for music generation'
     required: false
-    default: 'default'
+    default: 'chiptune'
+  lyrics:
+    description: 'Lyrics for the generation (use [inst] for instrumental)'
+    required: false
+    default: '[inst]'
+  duration:
+    description: 'Duration of the generated audio in seconds'
+    required: false
+    default: '20.0'
+  seed:
+    description: 'Random seed for reproducible generation (optional)'
+    required: false
   model_cache_path:
     description: 'Path to cache the model files'
     required: false

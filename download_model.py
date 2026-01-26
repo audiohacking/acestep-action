@@ -32,13 +32,17 @@ def main():
         torch_dtype = torch.float32
         print(f"✓ Using device: {device}, dtype: {torch_dtype}")
 
+        # Get model identifier from environment or use default
+        model_id = os.environ.get("ACESTEP_MODEL_ID", "ACE-Step/ACE-Step-v1-3.5B")
+        print(f"✓ Model identifier: {model_id}")
+
         # Download the model with timeout handling
-        print("Downloading model from HuggingFace: ACE-Step/ACE-Step-v1-3.5B...")
+        print(f"Downloading model from HuggingFace: {model_id}...")
         print("Note: This may take several minutes for large models...")
         start_time = time.time()
 
         model = ACEStepPipeline.from_pretrained(
-            "ACE-Step/ACE-Step-v1-3.5B",
+            model_id,
             torch_dtype=torch_dtype,
             device=device
         )
@@ -47,7 +51,11 @@ def main():
         print(f"✓ Model loaded successfully in {elapsed:.2f} seconds")
 
         # Verify the model cache
-        cache_dir = os.environ.get("HF_HOME", "/action/models")
+        cache_dir = os.environ.get("HF_HOME")
+        if not cache_dir:
+            print("✗ ERROR: HF_HOME environment variable not set!")
+            return 1
+            
         print(f"\nVerifying cache at: {cache_dir}")
 
         if os.path.exists(cache_dir):
@@ -85,7 +93,9 @@ def main():
         print(f"\n✗ ERROR: Failed to import ACEStepPipeline")
         print(f"Import error: {e}")
         print("\nThis may indicate the acestep package is not properly installed.")
-        print("Check that all dependencies in requirements.txt are installed.")
+        print("Verify that the package was installed successfully:")
+        print("  pip install git+https://github.com/ACE-Step/ACE-Step.git")
+        print("And that all dependencies in requirements.txt are installed.")
         import traceback
         print("\nFull traceback:")
         traceback.print_exc()

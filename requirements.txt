@@ -15,4 +15,4 @@ librosa>=0.11.0
 
 # Utilities
 numpy>=1.24.0
-tqdm
+tqdm>=4.64.0

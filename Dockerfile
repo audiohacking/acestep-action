@@ -20,6 +20,9 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Allow model ID to be customized at build time
+ARG ACESTEP_MODEL_ID=ACE-Step/ACE-Step-v1-3.5B
+
 # Pre-download the ACE-Step model to include in the image
 # This significantly speeds up action execution by avoiding model downloads
 ENV HF_HOME=/action/models
@@ -27,6 +30,7 @@ ENV TRANSFORMERS_CACHE=/action/models/transformers
 ENV HF_DATASETS_CACHE=/action/models/datasets
 ENV HF_HUB_OFFLINE=0
 ENV HF_HUB_DISABLE_TELEMETRY=1
+ENV ACESTEP_MODEL_ID=${ACESTEP_MODEL_ID}
 
 # Create directories for model cache
 RUN mkdir -p /action/models/transformers /action/models/datasets

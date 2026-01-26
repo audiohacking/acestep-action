@@ -128,7 +128,7 @@ def generate_audio(prompt: str, lyrics: str, duration: float, seed: int, output_
         
         # Determine device (cuda if available, else cpu)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        torch_dtype = "float16" if device == "cuda" else "float32"
+        torch_dtype = torch.float16 if device == "cuda" else torch.float32
         
         print(f"Using device: {device}, dtype: {torch_dtype}")
         
@@ -154,8 +154,10 @@ def generate_audio(prompt: str, lyrics: str, duration: float, seed: int, output_
         # Save as WAV first (temporary file)
         with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as tmp_wav:
             tmp_wav_path = tmp_wav.name
-            sf.write(tmp_wav_path, audio, model.config.sampling_rate, format='WAV')
-            print(f"WAV file saved temporarily to: {tmp_wav_path}")
+            # Use sampling rate from model config if available, otherwise default to 44100 Hz
+            sampling_rate = getattr(model.config, 'sampling_rate', 44100)
+            sf.write(tmp_wav_path, audio, sampling_rate, format='WAV')
+            print(f"WAV file saved temporarily to: {tmp_wav_path} (sampling rate: {sampling_rate} Hz)")
         
         # Convert WAV to MP3
         print("Converting WAV to MP3...")

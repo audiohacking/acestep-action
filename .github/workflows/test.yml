@@ -1,0 +1,51 @@
+name: Test Ace-Step Action
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Test Audio Generation
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup cache for models
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/acestep
+          key: ${{ runner.os }}-acestep-models-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-acestep-models-
+      
+      - name: Generate audio with Ace-Step
+        id: generate
+        uses: ./
+        with:
+          prompt: 'upbeat electronic chiptune music'
+          lyrics: '[inst]'
+          duration: '20.0'
+          model_cache_path: '~/.cache/acestep'
+          output_path: 'output.mp3'
+      
+      - name: Check output
+        run: |
+          echo "Generated audio file: ${{ steps.generate.outputs.audio_file }}"
+          echo "Generation time: ${{ steps.generate.outputs.generation_time }} seconds"
+          ls -lh ${{ steps.generate.outputs.audio_file }}
+      
+      - name: Upload audio artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-audio
+          path: ${{ steps.generate.outputs.audio_file }}
+          retention-days: 5

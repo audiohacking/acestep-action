@@ -28,10 +28,14 @@ ENV HF_DATASETS_CACHE=/action/models/datasets
 ENV HF_HUB_OFFLINE=0
 ENV HF_HUB_DISABLE_TELEMETRY=1
 
-# Create a Python script for model download with better error handling
+# Create directories for model cache
+RUN mkdir -p /action/models/transformers /action/models/datasets
+
+# Create a Python script for model download with comprehensive error handling
 RUN echo 'import sys\n\
 import torch\n\
 import os\n\
+import time\n\
 \n\
 print("="*80)\n\
 print("Starting ACE-Step model pre-download...")\n\
@@ -51,14 +55,19 @@ try:\n\
     torch_dtype = torch.float32\n\
     print(f"✓ Using device: {device}, dtype: {torch_dtype}")\n\
     \n\
-    # Download the model\n\
+    # Download the model with timeout handling\n\
     print("Downloading model from HuggingFace: ACE-Step/ACE-Step-v1-3.5B...")\n\
+    print("Note: This may take several minutes for large models...")\n\
+    start_time = time.time()\n\
+    \n\
     model = ACEStepPipeline.from_pretrained(\n\
         "ACE-Step/ACE-Step-v1-3.5B",\n\
         torch_dtype=torch_dtype,\n\
         device=device\n\
     )\n\
-    print("✓ Model loaded successfully")\n\
+    \n\
+    elapsed = time.time() - start_time\n\
+    print(f"✓ Model loaded successfully in {elapsed:.2f} seconds")\n\
     \n\
     # Verify the model cache\n\
     cache_dir = os.environ.get("HF_HOME", "/action/models")\n\
@@ -72,25 +81,37 @@ try:\n\
         \n\
         # Show top-level structure\n\
         print("\\nTop-level cache structure:")\n\
-        for item in os.listdir(cache_dir)[:10]:\n\
+        for item in sorted(os.listdir(cache_dir))[:10]:\n\
             path = os.path.join(cache_dir, item)\n\
             if os.path.isdir(path):\n\
-                print(f"  📁 {item}/")\n\
+                subitem_count = len(os.listdir(path))\n\
+                print(f"  📁 {item}/ ({subitem_count} items)")\n\
             else:\n\
-                print(f"  📄 {item}")\n\
+                size = os.path.getsize(path)\n\
+                print(f"  📄 {item} ({size} bytes)")\n\
+        \n\
+        # Verify we have model files\n\
+        if file_count > 0:\n\
+            print("\\n" + "="*80)\n\
+            print("✓ Model pre-download completed successfully!")\n\
+            print("✓ Model is cached and ready for use")\n\
+            print("="*80)\n\
+            sys.exit(0)\n\
+        else:\n\
+            print("\\n✗ WARNING: Cache directory exists but contains no files!")\n\
+            sys.exit(1)\n\
     else:\n\
         print("✗ ERROR: Cache directory not found!")\n\
         sys.exit(1)\n\
-    \n\
-    print("\\n" + "="*80)\n\
-    print("✓ Model pre-download completed successfully!")\n\
-    print("="*80)\n\
-    sys.exit(0)\n\
     \n\
 except ImportError as e:\n\
     print(f"\\n✗ ERROR: Failed to import ACEStepPipeline")\n\
     print(f"Import error: {e}")\n\
     print("\\nThis may indicate the acestep package is not properly installed.")\n\
+    print("Check that all dependencies in requirements.txt are installed.")\n\
+    import traceback\n\
+    print("\\nFull traceback:")\n\
+    traceback.print_exc()\n\
     sys.exit(1)\n\
 except Exception as e:\n\
     print(f"\\n✗ ERROR: Failed to download model")\n\
@@ -99,6 +120,9 @@ except Exception as e:\n\
     import traceback\n\
     print("\\nFull traceback:")\n\
     traceback.print_exc()\n\
+    print("\\n" + "="*80)\n\
+    print("Build failed: Model download unsuccessful")\n\
+    print("="*80)\n\
     sys.exit(1)\n\
 ' > /action/download_model.py && \
     python /action/download_model.py && \

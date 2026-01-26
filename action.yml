@@ -1,0 +1,34 @@
+name: 'Ace-Step Audio Generation'
+description: 'Generate audio files using Ace-Step model with automatic model caching'
+author: 'audiohacking'
+
+branding:
+  icon: 'music'
+  color: 'purple'
+
+inputs:
+  text:
+    description: 'Text to convert to speech'
+    required: true
+  voice:
+    description: 'Voice model to use for generation'
+    required: false
+    default: 'default'
+  model_cache_path:
+    description: 'Path to cache the model files'
+    required: false
+    default: '~/.cache/acestep'
+  output_path:
+    description: 'Output path for the generated MP3 file'
+    required: false
+    default: 'output.mp3'
+
+outputs:
+  audio_file:
+    description: 'Path to the generated MP3 audio file'
+  generation_time:
+    description: 'Time taken to generate the audio in seconds'
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'

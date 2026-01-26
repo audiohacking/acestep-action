@@ -1,0 +1,10 @@
+# Core dependencies for Ace-Step action
+# Audio processing
+# Machine learning models will be added when implementing the actual logic
+
+# Placeholder for future dependencies:
+# torch
+# torchaudio
+# transformers
+# soundfile
+# numpy

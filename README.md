@@ -1,15 +1,16 @@
 # Ace-Step Audio Generation Action
 
-A GitHub Action that generates music from text prompts using the ACE-Step model. This action automatically handles model downloads with intelligent caching for efficient repeated runs, and outputs high-quality MP3 files.
+A GitHub Action that generates music from text prompts using the ACE-Step-v1-3.5B model. This action uses a **pre-built Docker image** with the model and all dependencies included for fast, consistent execution.
 
 ## Features
 
 - 🎵 Generate high-quality music from text prompts
 - 🎹 Support for instrumental and lyric-based generation
-- 🚀 Automatic model caching for fast repeated runs
+- ⚡ **Pre-built Docker image** with model included - no download wait time
+- 🚀 Fast execution with pre-cached dependencies
 - 🐳 Containerized execution for consistency
 - 📦 Returns MP3 files ready for use in your workflow
-- ⚡ Easy integration with GitHub Actions workflows
+- 🔧 Easy integration with GitHub Actions workflows
 - 🎲 Reproducible generation with seed parameter
 
 ## Usage
@@ -96,15 +97,40 @@ jobs:
 | `audio_file` | Path to the generated MP3 audio file |
 | `generation_time` | Time taken to generate the audio in seconds |
 
-## Model Caching
+## Model Caching & Pre-built Docker Image
 
-The action automatically caches downloaded models in the specified `model_cache_path`. For GitHub Actions, we recommend:
+### Pre-built Docker Image (Recommended)
 
-1. Use the `actions/cache@v4` action to persist the cache between workflow runs
-2. Set the cache path to match the `model_cache_path` input (default: `~/.cache/acestep`)
-3. Use a cache key that includes your requirements hash for automatic invalidation on dependency changes
+This action uses a **pre-built Docker image** published to GitHub Container Registry that includes:
+- All Python dependencies pre-installed
+- The ACE-Step-v1-3.5B model pre-downloaded
+- All system dependencies (ffmpeg, etc.)
 
-This dramatically reduces execution time on subsequent runs by avoiding model re-downloads.
+**Benefits:**
+- ⚡ **Significantly faster execution** - No need to download the model on each run
+- 🔒 **Consistent environment** - Same dependencies across all runs
+- 💾 **Reduced bandwidth** - Model is cached in the image
+
+The image is automatically built and published when code changes are pushed to the main branch.
+
+**Image location:** `ghcr.io/audiohacking/acestep-action:latest`
+
+### Local Caching (Alternative)
+
+If you prefer to use local caching with `actions/cache@v4`:
+
+1. Set the cache path to match the `model_cache_path` input (default: `~/.cache/acestep`)
+2. Use a cache key that includes your requirements hash for automatic invalidation on dependency changes
+
+Example:
+```yaml
+- uses: actions/cache@v4
+  with:
+    path: ~/.cache/acestep
+    key: ${{ runner.os }}-acestep-models-${{ hashFiles('**/requirements.txt') }}
+```
+
+**Note:** The pre-built image already contains the model, so additional caching is typically not needed unless you want to experiment with different models.
 
 ## Development
 
@@ -112,14 +138,32 @@ This dramatically reduces execution time on subsequent runs by avoiding model re
 
 ```
 acestep-action/
-├── action.yml          # Action metadata and configuration
-├── Dockerfile          # Container definition
-├── requirements.txt    # Python dependencies
+├── action.yml                    # Action metadata and configuration
+├── Dockerfile                    # Container definition with pre-downloaded model
+├── requirements.txt              # Python dependencies
 ├── src/
-│   └── main.py        # Main action script
+│   └── main.py                  # Main action script
 └── .github/
     └── workflows/
-        └── test.yml   # Test workflow
+        ├── test.yml             # Test workflow
+        └── build-docker.yml     # Docker image build and publish workflow
+```
+
+### Building the Docker Image
+
+The Docker image is automatically built and published to `ghcr.io/audiohacking/acestep-action` when changes are pushed to the main branch.
+
+To build locally:
+
+```bash
+docker build -t acestep-action .
+```
+
+To publish manually (requires appropriate permissions):
+
+```bash
+docker tag acestep-action ghcr.io/audiohacking/acestep-action:latest
+docker push ghcr.io/audiohacking/acestep-action:latest
 ```
 
 ### Local Testing
@@ -127,8 +171,24 @@ acestep-action/
 You can test the action locally using Docker:
 
 ```bash
+# Build the image
 docker build -t acestep-action .
-docker run -e INPUT_TEXT="Test message" acestep-action
+
+# Run with test parameters
+docker run -e INPUT_PROMPT="upbeat chiptune" \
+           -e INPUT_LYRICS="[inst]" \
+           -e INPUT_DURATION="15.0" \
+           acestep-action
+```
+
+### Using Local Dockerfile
+
+To use the local Dockerfile instead of the pre-built image (for development), update `action.yml`:
+
+```yaml
+runs:
+  using: 'docker'
+  image: 'Dockerfile'  # Change from 'docker://ghcr.io/...'
 ```
 
 ## Contributing

@@ -39,4 +39,6 @@ outputs:
 
 runs:
   using: 'docker'
-  image: 'Dockerfile'
+  # Use pre-built image from GitHub Container Registry for faster execution
+  # To use local Dockerfile instead, change 'image:' to 'image: Dockerfile'
+  image: 'docker://ghcr.io/audiohacking/acestep-action:latest'

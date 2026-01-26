@@ -118,9 +118,18 @@ def generate_audio(prompt: str, lyrics: str, duration: float, seed: int, output_
         return generation_time
     
     # Set cache directory for Hugging Face models
-    os.environ['HF_HOME'] = str(cache_dir)
-    os.environ['TRANSFORMERS_CACHE'] = str(cache_dir / 'transformers')
-    os.environ['HF_DATASETS_CACHE'] = str(cache_dir / 'datasets')
+    # If running in Docker with pre-cached model, use /action/models
+    # Otherwise, use user-specified cache directory
+    if os.path.exists('/action/models'):
+        print("Using pre-cached model from Docker image at /action/models")
+        os.environ['HF_HOME'] = '/action/models'
+        os.environ['TRANSFORMERS_CACHE'] = '/action/models/transformers'
+        os.environ['HF_DATASETS_CACHE'] = '/action/models/datasets'
+    else:
+        print(f"Using user-specified cache directory: {cache_dir}")
+        os.environ['HF_HOME'] = str(cache_dir)
+        os.environ['TRANSFORMERS_CACHE'] = str(cache_dir / 'transformers')
+        os.environ['HF_DATASETS_CACHE'] = str(cache_dir / 'datasets')
     
     try:
         # Load ACE-Step model

@@ -33,6 +33,12 @@ def main():
         print(f"✓ Model identifier: {model_id}")
         print(f"✓ Checkpoint path: {checkpoint_path}")
 
+        # Verify checkpoint directory exists before attempting to load model
+        if not os.path.exists(checkpoint_path):
+            print("✗ WARNING: Checkpoint directory does not exist.")
+            print(f"Creating checkpoint directory: {checkpoint_path}")
+            os.makedirs(checkpoint_path, exist_ok=True)
+
         # Download the model with timeout handling
         print(f"Downloading model from HuggingFace: {model_id}...")
         print("Note: This may take several minutes for large models...")
@@ -53,6 +59,14 @@ def main():
 
         elapsed = time.time() - start_time
         print(f"✓ Model loaded successfully in {elapsed:.2f} seconds")
+
+        # Verify checkpoint directory has content after model loading
+        checkpoint_files = os.listdir(checkpoint_path)
+        if not checkpoint_files:
+            print("✗ WARNING: Checkpoint directory is empty after model loading.")
+            return 1
+        else:
+            print(f"✓ Checkpoint directory contains {len(checkpoint_files)} items")
 
         # Verify the model cache
         cache_dir = os.environ.get("HF_HOME")

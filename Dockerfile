@@ -31,9 +31,10 @@ ENV HF_DATASETS_CACHE=/action/models/datasets
 ENV HF_HUB_OFFLINE=0
 ENV HF_HUB_DISABLE_TELEMETRY=1
 ENV ACESTEP_MODEL_ID=${ACESTEP_MODEL_ID}
+ENV CHECKPOINT_PATH=/action/models/checkpoints
 
 # Create directories for model cache
-RUN mkdir -p /action/models/transformers /action/models/datasets
+RUN mkdir -p /action/models/transformers /action/models/datasets /action/models/checkpoints
 
 # Copy and run the model download script
 COPY download_model.py .

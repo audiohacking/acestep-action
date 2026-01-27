@@ -144,14 +144,14 @@ def generate_audio(prompt: str, lyrics: str, duration: float, seed: int, output_
         
         # Instantiate ACEStepPipeline with the correct parameters
         # device_id should be an integer (0 for CPU or GPU index)
+        # Using float32 dtype for maximum compatibility across all device types
+        dtype_str = "float32"
+        
         if device == "cpu":
             device_id = 0
-            dtype_str = "float32"
         else:
             # For CUDA, get current device index
             device_id = torch.cuda.current_device()
-            # Use float32 for better compatibility across different GPU types
-            dtype_str = "float32"
         
         print(f"Using device: {device} (device_id: {device_id}), dtype: {dtype_str}")
         

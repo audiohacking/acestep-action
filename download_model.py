@@ -39,10 +39,10 @@ def main():
         start_time = time.time()
 
         # Instantiate ACEStepPipeline with the correct parameters
-        # device_id should be an integer (0 for CPU or GPU index)
-        # Force CPU for container builds to ensure compatibility
-        device_id = 0  # Using 0 for CPU/first GPU
-        dtype_str = "float32"  # Use float32 for CPU compatibility
+        # device_id: integer device identifier (0 is default)
+        # dtype: string dtype for precision (using float32 for CPU compatibility)
+        device_id = 0
+        dtype_str = "float32"
         print(f"✓ Using device_id: {device_id}, dtype: {dtype_str}")
         
         model = ACEStepPipeline(

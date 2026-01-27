@@ -38,7 +38,7 @@ ENV CHECKPOINT_PATH=/action/models/checkpoints
 
 # Create directories for model cache with proper permissions
 RUN mkdir -p /action/models/transformers /action/models/datasets /action/models/checkpoints && \
-    chmod -R 777 /action/models
+    chmod -R 755 /action/models
 
 # Copy and run the model download script
 COPY download_model.py .

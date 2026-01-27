@@ -151,8 +151,8 @@ def generate_audio(prompt: str, lyrics: str, duration: float, seed: int, output_
             device_id = 0
             dtype_str = "float32"
         else:
-            # For CUDA, get current device index safely
-            device_id = torch.cuda.current_device() if torch.cuda.is_available() else 0
+            # For CUDA, get current device index
+            device_id = torch.cuda.current_device()
             # Use float32 for better compatibility across different GPU types
             dtype_str = "float32"
         

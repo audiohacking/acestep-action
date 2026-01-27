@@ -141,8 +141,9 @@ def generate_audio(prompt: str, lyrics: str, duration: float, seed: int, output_
         
         print(f"Using device: {device}, dtype: {torch_dtype}")
         
-        # Use checkpoint path from environment or cache directory
+        # Use checkpoint path from environment or derive from cache directory
         checkpoint_path = os.environ.get("CHECKPOINT_PATH", str(cache_dir / "checkpoints"))
+        print(f"Checkpoint path: {checkpoint_path}")
         
         model = ACEStepPipeline.load(
             model_id="ACE-Step/ACE-Step-v1-3.5B",

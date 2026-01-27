@@ -36,7 +36,7 @@ def main():
 
         # Get model identifier and checkpoint path from environment or use defaults
         model_id = os.environ.get("ACESTEP_MODEL_ID", "ACE-Step/ACE-Step-v1-3.5B")
-        checkpoint_path = os.environ.get("CHECKPOINT_PATH", "~/.cache/ace-step/checkpoints")
+        checkpoint_path = os.environ.get("CHECKPOINT_PATH", os.path.expanduser("~/.cache/ace-step/checkpoints"))
         print(f"✓ Model identifier: {model_id}")
         print(f"✓ Checkpoint path: {checkpoint_path}")
 

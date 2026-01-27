@@ -137,19 +137,28 @@ def generate_audio(prompt: str, lyrics: str, duration: float, seed: int, output_
         
         # Determine device (cuda if available, else cpu)
         device = "cuda" if torch.cuda.is_available() else "cpu"
-        torch_dtype = torch.float16 if device == "cuda" else torch.float32
-        
-        print(f"Using device: {device}, dtype: {torch_dtype}")
         
         # Use checkpoint path from environment or derive from cache directory
         checkpoint_path = os.environ.get("CHECKPOINT_PATH", str(cache_dir / "checkpoints"))
         print(f"Checkpoint path: {checkpoint_path}")
         
-        model = ACEStepPipeline.load(
-            model_id="ACE-Step/ACE-Step-v1-3.5B",
-            checkpoint_path=checkpoint_path,
-            device=device,
-            torch_dtype=torch_dtype
+        # Instantiate ACEStepPipeline with the correct parameters
+        # device_id should be an integer (0 for CPU or GPU index)
+        # Using float32 dtype for maximum compatibility across all device types
+        dtype_str = "float32"
+        
+        if device == "cpu":
+            device_id = 0
+        else:
+            # For CUDA, get current device index
+            device_id = torch.cuda.current_device()
+        
+        print(f"Using device: {device} (device_id: {device_id}), dtype: {dtype_str}")
+        
+        model = ACEStepPipeline(
+            checkpoint_dir=checkpoint_path,
+            device_id=device_id,
+            dtype=dtype_str
         )
         
         print("Model loaded successfully!")

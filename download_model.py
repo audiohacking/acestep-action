@@ -34,19 +34,22 @@ def main():
         torch_dtype = torch.float32
         print(f"✓ Using device: {device}, dtype: {torch_dtype}")
 
-        # Get model identifier from environment or use default
+        # Get model identifier and checkpoint path from environment or use defaults
         model_id = os.environ.get("ACESTEP_MODEL_ID", "ACE-Step/ACE-Step-v1-3.5B")
+        checkpoint_path = os.environ.get("CHECKPOINT_PATH", os.path.expanduser("~/.cache/ace-step/checkpoints"))
         print(f"✓ Model identifier: {model_id}")
+        print(f"✓ Checkpoint path: {checkpoint_path}")
 
         # Download the model with timeout handling
         print(f"Downloading model from HuggingFace: {model_id}...")
         print("Note: This may take several minutes for large models...")
         start_time = time.time()
 
-        model = ACEStepPipeline.from_pretrained(
-            model_id,
-            torch_dtype=torch_dtype,
-            device=device
+        model = ACEStepPipeline.load(
+            model_id=model_id,
+            checkpoint_path=checkpoint_path,
+            device=device,
+            torch_dtype=torch_dtype
         )
 
         elapsed = time.time() - start_time

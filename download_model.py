@@ -54,6 +54,18 @@ def main():
         elapsed = time.time() - start_time
         print(f"✓ Model loaded successfully in {elapsed:.2f} seconds")
 
+        # Verify checkpoint directory
+        if os.path.exists(checkpoint_path):
+            checkpoint_files = os.listdir(checkpoint_path)
+            if not checkpoint_files:
+                print("✗ WARNING: Checkpoint directory is empty or inaccessible.")
+                return 1
+            else:
+                print(f"✓ Checkpoint directory contains {len(checkpoint_files)} items")
+        else:
+            print("✗ WARNING: Checkpoint directory does not exist.")
+            return 1
+
         # Verify the model cache
         cache_dir = os.environ.get("HF_HOME")
         if not cache_dir:

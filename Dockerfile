@@ -18,7 +18,10 @@ RUN apt-get update && \
 COPY requirements.txt .
 
 # Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install ACE-Step library first to ensure it's available for download_model.py
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir git+https://github.com/ACE-Step/ACE-Step.git && \
+    pip install --no-cache-dir -r requirements.txt
 
 # Allow model ID to be customized at build time
 ARG ACESTEP_MODEL_ID=ACE-Step/ACE-Step-v1-3.5B
@@ -33,8 +36,9 @@ ENV HF_HUB_DISABLE_TELEMETRY=1
 ENV ACESTEP_MODEL_ID=${ACESTEP_MODEL_ID}
 ENV CHECKPOINT_PATH=/action/models/checkpoints
 
-# Create directories for model cache
-RUN mkdir -p /action/models/transformers /action/models/datasets /action/models/checkpoints
+# Create directories for model cache with proper permissions
+RUN mkdir -p /action/models/transformers /action/models/datasets /action/models/checkpoints && \
+    chmod -R 777 /action/models
 
 # Copy and run the model download script
 COPY download_model.py .

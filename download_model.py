@@ -27,13 +27,6 @@ def main():
         from acestep.pipeline_ace_step import ACEStepPipeline
         print("✓ Successfully imported ACEStepPipeline")
 
-        # Determine device and dtype
-        # Force CPU for container builds to ensure compatibility across different
-        # host environments and because CUDA is typically not available during build
-        device = "cpu"
-        torch_dtype = torch.float32
-        print(f"✓ Using device: {device}, dtype: {torch_dtype}")
-
         # Get model identifier and checkpoint path from environment or use defaults
         model_id = os.environ.get("ACESTEP_MODEL_ID", "ACE-Step/ACE-Step-v1-3.5B")
         checkpoint_path = os.environ.get("CHECKPOINT_PATH", os.path.expanduser("~/.cache/ace-step/checkpoints"))
@@ -45,11 +38,17 @@ def main():
         print("Note: This may take several minutes for large models...")
         start_time = time.time()
 
-        model = ACEStepPipeline.load(
-            model_id=model_id,
-            checkpoint_path=checkpoint_path,
-            device=device,
-            torch_dtype=torch_dtype
+        # Instantiate ACEStepPipeline with the correct parameters
+        # device_id should be an integer (0 for CPU or GPU index)
+        # Force CPU for container builds to ensure compatibility
+        device_id = 0  # Using 0 for CPU/first GPU
+        dtype_str = "float32"  # Use float32 for CPU compatibility
+        print(f"✓ Using device_id: {device_id}, dtype: {dtype_str}")
+        
+        model = ACEStepPipeline(
+            checkpoint_dir=checkpoint_path,
+            device_id=device_id,
+            dtype=dtype_str
         )
 
         elapsed = time.time() - start_time

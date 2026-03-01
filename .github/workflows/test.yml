@@ -33,12 +33,12 @@ jobs:
         run: |
           echo "Generated audio file: ${{ steps.generate.outputs.audio_file }}"
           echo "Generation time: ${{ steps.generate.outputs.generation_time }} seconds"
-          ls -lh "${{ steps.generate.outputs.audio_file }}"
+          ls -lh "${{ github.workspace }}/output.wav"
 
       - name: Debug - verify workspace file presence and format
         run: |
-          ls -lh /github/workspace/output.wav
-          cat /github/workspace/output.wav | head -c 44 | base64
+          ls -lh "${{ github.workspace }}/output.wav"
+          cat "${{ github.workspace }}/output.wav" | head -c 44 | base64
 
       - name: List workspace before upload
         run: ls -lh ${{ github.workspace }}

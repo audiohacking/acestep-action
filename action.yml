@@ -1,5 +1,5 @@
 name: 'Ace-Step Audio Generation'
-description: 'Generate audio files using Ace-Step model with automatic model caching'
+description: 'Generate audio using Ace-Step 1.5 via acestep.cpp — no Python, no torch'
 author: 'audiohacking'
 
 branding:
@@ -7,38 +7,119 @@ branding:
   color: 'purple'
 
 inputs:
-  prompt:
-    description: 'Text prompt for music generation'
+  caption:
+    description: 'Text description for music generation'
     required: false
     default: 'chiptune'
   lyrics:
-    description: 'Lyrics for the generation (use [inst] for instrumental)'
+    description: 'Lyrics (leave empty for LLM auto-generation)'
     required: false
-    default: '[inst]'
+    default: ''
   duration:
     description: 'Duration of the generated audio in seconds'
     required: false
-    default: '20.0'
+    default: '20'
   seed:
     description: 'Random seed for reproducible generation (optional)'
     required: false
+    default: ''
+  inference_steps:
+    description: 'Number of DiT inference steps'
+    required: false
+    default: '8'
+  shift:
+    description: 'Flow matching shift parameter'
+    required: false
+    default: '3'
+  vocal_language:
+    description: 'Vocal language code (en, fr, es, …)'
+    required: false
+    default: 'en'
   model_cache_path:
-    description: 'Path to cache the model files'
+    description: 'Directory to cache GGUF model files'
     required: false
     default: '~/.cache/acestep'
   output_path:
-    description: 'Output path for the generated MP3 file'
+    description: 'Output path for the generated WAV file'
     required: false
-    default: 'output.mp3'
+    default: 'output.wav'
 
 outputs:
   audio_file:
-    description: 'Path to the generated MP3 audio file'
+    description: 'Path to the generated WAV audio file'
+    value: ${{ steps.generate.outputs.audio_file }}
   generation_time:
     description: 'Time taken to generate the audio in seconds'
+    value: ${{ steps.generate.outputs.generation_time }}
 
 runs:
-  using: 'docker'
-  # Use pre-built image from GitHub Container Registry for faster execution
-  # To use local Dockerfile instead, change 'image:' to 'image: Dockerfile'
-  image: 'docker://ghcr.io/audiohacking/acestep-action:latest'
+  using: 'composite'
+  steps:
+    - name: Install build dependencies
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq cmake build-essential pkg-config libopenblas-dev
+
+    - name: Get acestep.cpp latest commit
+      id: cpp-version
+      shell: bash
+      run: |
+        COMMIT=$(git ls-remote https://github.com/audiohacking/acestep.cpp HEAD | cut -f1)
+        echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+
+    - name: Cache acestep.cpp binaries
+      id: cache-bin
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/acestep-bin
+        key: ${{ runner.os }}-acestep-bin-${{ steps.cpp-version.outputs.commit }}
+
+    - name: Clone and build acestep.cpp
+      if: steps.cache-bin.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        git clone --recurse-submodules https://github.com/audiohacking/acestep.cpp /tmp/acestep-cpp
+        cd /tmp/acestep-cpp
+        mkdir build && cd build
+        cmake .. -DGGML_BLAS=ON
+        cmake --build . --config Release -j$(nproc)
+        mkdir -p ~/.cache/acestep-bin
+        cp build/ace-qwen3 build/dit-vae ~/.cache/acestep-bin/
+
+    - name: Cache GGUF models
+      id: cache-models
+      uses: actions/cache@v4
+      with:
+        path: ${{ inputs.model_cache_path }}
+        key: ${{ runner.os }}-acestep-models-q8-v15
+
+    - name: Download GGUF models
+      if: steps.cache-models.outputs.cache-hit != 'true'
+      shell: bash
+      run: |
+        pip install -q hf
+        REPO="Serveurperso/ACE-Step-1.5-GGUF"
+        DIR="${{ inputs.model_cache_path }}"
+        DIR="${DIR/#\~/$HOME}"
+        mkdir -p "$DIR"
+        hf download --quiet "$REPO" "vae-BF16.gguf"                       --local-dir "$DIR"
+        hf download --quiet "$REPO" "Qwen3-Embedding-0.6B-Q8_0.gguf"     --local-dir "$DIR"
+        hf download --quiet "$REPO" "acestep-5Hz-lm-4B-Q8_0.gguf"        --local-dir "$DIR"
+        hf download --quiet "$REPO" "acestep-v15-turbo-Q8_0.gguf"         --local-dir "$DIR"
+
+    - name: Generate audio
+      id: generate
+      shell: bash
+      env:
+        CAPTION: ${{ inputs.caption }}
+        LYRICS: ${{ inputs.lyrics }}
+        DURATION: ${{ inputs.duration }}
+        SEED: ${{ inputs.seed }}
+        INFERENCE_STEPS: ${{ inputs.inference_steps }}
+        SHIFT: ${{ inputs.shift }}
+        VOCAL_LANGUAGE: ${{ inputs.vocal_language }}
+        OUTPUT_PATH: ${{ inputs.output_path }}
+        MODEL_DIR: ${{ inputs.model_cache_path }}
+        BIN_DIR: ~/.cache/acestep-bin
+      run: bash "${{ github.action_path }}/src/entrypoint.sh"

@@ -44,6 +44,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: generated-audio
-          path: ${{ steps.generate.outputs.audio_file }}
+          path: ${{ github.workspace }}/output.wav
           retention-days: 5
 

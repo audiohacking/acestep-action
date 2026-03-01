@@ -40,6 +40,9 @@ jobs:
           ls -lh /github/workspace/output.wav
           cat /github/workspace/output.wav | head -c 44 | base64
 
+      - name: List workspace before upload
+        run: ls -lh ${{ github.workspace }}
+
       - name: Upload audio artifact
         uses: actions/upload-artifact@v4
         with:

@@ -32,6 +32,8 @@ RUN git clone --depth 1 --recurse-submodules \
     cmake --build . --config Release -j$(nproc) && \
     mkdir -p /action/bin && \
     cp ace-qwen3 dit-vae /action/bin/ && \
+    cp libggml.so.0 /usr/local/lib/ && \
+    ldconfig && \
     cd / && rm -rf /tmp/acestep-cpp
 
 # ---------------------------------------------------------------------------

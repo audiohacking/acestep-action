@@ -1,51 +1,59 @@
-FROM python:3.10-slim
+FROM ubuntu:22.04
 
 LABEL maintainer="audiohacking"
-LABEL description="Ace-Step Audio Generation Action"
+LABEL description="Ace-Step Audio Generation Action — acestep.cpp engine with pre-bundled models"
 
-# Set working directory
-WORKDIR /action
+# Prevent interactive prompts during apt-get
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Install system dependencies
+# ---------------------------------------------------------------------------
+# System dependencies
+# ---------------------------------------------------------------------------
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    git \
-    wget \
-    ffmpeg \
+        git \
+        cmake \
+        build-essential \
+        pkg-config \
+        libopenblas-dev \
+        python3-pip \
+        jq \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better layer caching
-COPY requirements.txt .
+# ---------------------------------------------------------------------------
+# Build ace-qwen3 and dit-vae from audiohacking/acestep.cpp
+# ---------------------------------------------------------------------------
+RUN git clone --depth 1 --recurse-submodules \
+        https://github.com/audiohacking/acestep.cpp /tmp/acestep-cpp && \
+    cd /tmp/acestep-cpp && \
+    mkdir build && cd build && \
+    cmake .. -DGGML_BLAS=ON -DCMAKE_BUILD_TYPE=Release && \
+    cmake --build . --config Release -j$(nproc) && \
+    mkdir -p /action/bin && \
+    cp ace-qwen3 dit-vae /action/bin/ && \
+    cd / && rm -rf /tmp/acestep-cpp
 
-# Install Python dependencies
-# Install ACE-Step library first to ensure it's available for download_model.py
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir git+https://github.com/ACE-Step/ACE-Step.git && \
-    pip install --no-cache-dir -r requirements.txt
+# ---------------------------------------------------------------------------
+# Pre-download GGUF models from Serveurperso/ACE-Step-1.5-GGUF
+# Four files totalling ~7.7 GB (Q8_0 turbo essentials)
+# ---------------------------------------------------------------------------
+ARG GGUF_REPO=Serveurperso/ACE-Step-1.5-GGUF
+ARG GGUF_QUANT=Q8_0
 
-# Allow model ID to be customized at build time
-ARG ACESTEP_MODEL_ID=ACE-Step/ACE-Step-v1-3.5B
+ENV GGUF_REPO=${GGUF_REPO}
 
-# Pre-download the ACE-Step model to include in the image
-# This significantly speeds up action execution by avoiding model downloads
-ENV HF_HOME=/action/models
-ENV TRANSFORMERS_CACHE=/action/models/transformers
-ENV HF_DATASETS_CACHE=/action/models/datasets
-ENV HF_HUB_OFFLINE=0
-ENV HF_HUB_DISABLE_TELEMETRY=1
-ENV ACESTEP_MODEL_ID=${ACESTEP_MODEL_ID}
-ENV CHECKPOINT_PATH=/action/models/checkpoints
+RUN pip3 install --no-cache-dir hf && \
+    mkdir -p /action/models && \
+    hf download --quiet "${GGUF_REPO}" "vae-BF16.gguf"                     --local-dir /action/models && \
+    hf download --quiet "${GGUF_REPO}" "Qwen3-Embedding-0.6B-${GGUF_QUANT}.gguf" --local-dir /action/models && \
+    hf download --quiet "${GGUF_REPO}" "acestep-5Hz-lm-4B-${GGUF_QUANT}.gguf"   --local-dir /action/models && \
+    hf download --quiet "${GGUF_REPO}" "acestep-v15-turbo-${GGUF_QUANT}.gguf"    --local-dir /action/models
 
-# Create directories for model cache with proper permissions
-RUN mkdir -p /action/models/transformers /action/models/datasets /action/models/checkpoints && \
-    chmod -R 755 /action/models
+# ---------------------------------------------------------------------------
+# Copy and install entrypoint
+# ---------------------------------------------------------------------------
+COPY src/entrypoint.sh /action/entrypoint.sh
+RUN chmod +x /action/entrypoint.sh
 
-# Copy and run the model download script
-COPY download_model.py .
-RUN python download_model.py && rm download_model.py
-
-# Copy action source code
-COPY src/ ./src/
-
-# Set the entry point
-ENTRYPOINT ["python", "/action/src/main.py"]
+ENTRYPOINT ["/action/entrypoint.sh"]

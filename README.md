@@ -1,14 +1,18 @@
 # Ace-Step Audio Generation Action
 
-A GitHub Action that generates music from text prompts using [Ace-Step 1.5](https://github.com/ACE-Step/ACE-Step-1.5) via the native [acestep.cpp](https://github.com/audiohacking/acestep.cpp) engine — **no Python, no PyTorch**.  
-Text + optional lyrics in, stereo 48 kHz WAV out.  Runs entirely on CPU (OpenBLAS).
+A GitHub Action that generates music from text prompts using [Ace-Step 1.5](https://github.com/ACE-Step/ACE-Step-1.5) via the native [acestep.cpp](https://github.com/audiohacking/acestep.cpp) engine.  
+Text + optional lyrics in, stereo 48 kHz WAV out.
+
+**No Python. No PyTorch. No waiting.**  
+The pre-built Docker image ships with compiled `ace-qwen3`/`dit-vae` binaries **and** all ~7.7 GB of pre-quantized GGUF models baked in — action execution starts immediately.
 
 ## Features
 
 - 🎵 Generate high-quality music from a text caption
 - 🖊️ Optional lyrics — or let the LLM write them for you
 - ⚡ Native C++17 / GGML engine — lightweight, no GPU required
-- 📦 GGUF models cached with `actions/cache@v4` — fast on repeat runs
+- 🐳 Pre-built Docker image with models included — zero download wait
+- 🎲 Reproducible generation with optional seed
 - 🔧 Easy integration with GitHub Actions workflows
 
 ## Usage
@@ -73,7 +77,6 @@ jobs:
 | `inference_steps` | Number of DiT inference steps | No | `8` |
 | `shift` | Flow-matching shift parameter | No | `3` |
 | `vocal_language` | Vocal language code (`en`, `fr`, …) | No | `en` |
-| `model_cache_path` | Directory to cache GGUF model files | No | `~/.cache/acestep` |
 | `output_path` | Output path for the generated WAV file | No | `output.wav` |
 
 ## Outputs
@@ -85,29 +88,61 @@ jobs:
 
 ## How it works
 
-The action is a **composite action** that:
+The action runs as a **pre-built Docker container** published to GitHub Container Registry.  The image is built once (by `build-docker.yml`) and contains everything needed:
 
-1. **Installs** CMake and OpenBLAS on the runner.
-2. **Builds** `ace-qwen3` and `dit-vae` from [audiohacking/acestep.cpp](https://github.com/audiohacking/acestep.cpp) (cached per commit).
-3. **Downloads** four GGUF files from [Serveurperso/ACE-Step-1.5-GGUF](https://huggingface.co/Serveurperso/ACE-Step-1.5-GGUF) (~7.7 GB, cached across runs):
-   - `Qwen3-Embedding-0.6B-Q8_0.gguf` — text encoder
-   - `acestep-5Hz-lm-4B-Q8_0.gguf` — Qwen3 causal LM (audio codes)
-   - `acestep-v15-turbo-Q8_0.gguf` — DiT diffusion transformer
-   - `vae-BF16.gguf` — Oobleck VAE decoder
-4. **Generates** audio via two stages:
-   - `ace-qwen3`: caption → enriched JSON with lyrics + audio codes
-   - `dit-vae`: JSON → stereo 48 kHz WAV
+| What | Where in image |
+|------|---------------|
+| `ace-qwen3` binary (Qwen3 causal LM) | `/action/bin/ace-qwen3` |
+| `dit-vae` binary (DiT + Oobleck VAE) | `/action/bin/dit-vae` |
+| `Qwen3-Embedding-0.6B-Q8_0.gguf` | `/action/models/` |
+| `acestep-5Hz-lm-4B-Q8_0.gguf` | `/action/models/` |
+| `acestep-v15-turbo-Q8_0.gguf` | `/action/models/` |
+| `vae-BF16.gguf` | `/action/models/` |
+
+At runtime the entrypoint (`src/entrypoint.sh`):
+1. Builds a request JSON from inputs
+2. Runs `ace-qwen3` (LLM stage: caption → enriched JSON with lyrics + audio codes)
+3. Runs `dit-vae` (DiT + VAE stage: JSON → stereo 48 kHz WAV)
+4. Moves the output WAV to the requested path in `$GITHUB_WORKSPACE`
+
+**Image location:** `ghcr.io/audiohacking/acestep-action:latest`
 
 ## Project structure
 
 ```
 acestep-action/
-├── action.yml                    # Composite action definition
+├── action.yml                      # Docker action definition
+├── Dockerfile                      # Image: build binaries + download models
 ├── src/
-│   └── entrypoint.sh            # Generation shell script
+│   └── entrypoint.sh              # Generation shell script (Docker entrypoint)
 └── .github/
     └── workflows/
-        └── test.yml             # CI test workflow
+        ├── build-docker.yml       # Build and publish image to GHCR
+        └── test.yml               # CI test workflow
+```
+
+## Local development
+
+To test locally with the Dockerfile instead of the GHCR image, change `action.yml`:
+
+```yaml
+runs:
+  using: 'docker'
+  image: 'Dockerfile'   # instead of 'docker://ghcr.io/...'
+```
+
+Then build and run the container manually:
+
+```bash
+docker build -t acestep-action .
+
+docker run --rm \
+  -e INPUT_CAPTION="upbeat chiptune" \
+  -e INPUT_DURATION="10" \
+  -e GITHUB_WORKSPACE=/out \
+  -e GITHUB_OUTPUT=/dev/stdout \
+  -v /tmp/out:/out \
+  acestep-action
 ```
 
 ## Contributing
@@ -117,7 +152,3 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 ## License
 
 See [LICENSE](LICENSE) file for details.
-
-## Support
-
-For issues, questions, or contributions, please visit the [GitHub repository](https://github.com/audiohacking/acestep-action).

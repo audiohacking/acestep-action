@@ -1,42 +1,36 @@
 #!/bin/bash
-# Ace-Step Audio Generation — entrypoint for the composite GitHub Action.
-# Reads inputs from environment variables set by action.yml, builds a request
-# JSON, runs the two-stage acestep.cpp pipeline (ace-qwen3 → dit-vae), and
-# writes the generated WAV to the requested output path.
+# Ace-Step Audio Generation — Docker action entrypoint.
 #
-# Required env vars (set by action.yml):
-#   CAPTION          – text description / caption
-#   LYRICS           – lyrics string (empty = LLM auto-generates)
-#   DURATION         – audio duration in seconds (integer)
-#   SEED             – random seed (empty = non-deterministic)
-#   INFERENCE_STEPS  – DiT inference steps
-#   SHIFT            – flow-matching shift parameter
-#   VOCAL_LANGUAGE   – BCP-47 language code (en, fr, …)
-#   OUTPUT_PATH      – desired output WAV path
-#   MODEL_DIR        – directory containing downloaded GGUF files
-#   BIN_DIR          – directory containing ace-qwen3 and dit-vae binaries
+# When running as a GitHub Actions Docker action, inputs arrive as
+# INPUT_<NAME> environment variables.  Binaries and models are pre-installed
+# in the Docker image at build time:
+#
+#   /action/bin/ace-qwen3   — Qwen3 causal LM (audio codes)
+#   /action/bin/dit-vae     — DiT flow-matching + Oobleck VAE
+#   /action/models/         — GGUF model files
 
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Read inputs (Docker action convention: INPUT_<NAME>)
 # ---------------------------------------------------------------------------
 
-expand_path() {
-    local p="$1"
-    echo "${p/#\~/$HOME}"
-}
+CAPTION="${INPUT_CAPTION:-chiptune}"
+LYRICS="${INPUT_LYRICS:-}"
+DURATION="${INPUT_DURATION:-20}"
+SEED="${INPUT_SEED:-}"
+INFERENCE_STEPS="${INPUT_INFERENCE_STEPS:-8}"
+SHIFT="${INPUT_SHIFT:-3}"
+VOCAL_LANGUAGE="${INPUT_VOCAL_LANGUAGE:-en}"
+OUTPUT_PATH="${INPUT_OUTPUT_PATH:-output.wav}"
 
 # ---------------------------------------------------------------------------
-# Resolve paths
+# Fixed in-image paths
 # ---------------------------------------------------------------------------
 
-MODEL_DIR=$(expand_path "${MODEL_DIR:-~/.cache/acestep}")
-BIN_DIR=$(expand_path "${BIN_DIR:-~/.cache/acestep-bin}")
-OUTPUT_EXPANDED=$(expand_path "${OUTPUT_PATH:-output.wav}")
-
-ACE_QWEN3="$BIN_DIR/ace-qwen3"
-DIT_VAE="$BIN_DIR/dit-vae"
+MODEL_DIR="/action/models"
+ACE_QWEN3="/action/bin/ace-qwen3"
+DIT_VAE="/action/bin/dit-vae"
 
 # ---------------------------------------------------------------------------
 # Validate binaries
@@ -52,6 +46,14 @@ if [ ! -x "$DIT_VAE" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Resolve output path: relative paths are relative to $GITHUB_WORKSPACE
+# ---------------------------------------------------------------------------
+
+if [[ "$OUTPUT_PATH" != /* ]]; then
+    OUTPUT_PATH="${GITHUB_WORKSPACE:-/github/workspace}/${OUTPUT_PATH}"
+fi
+
+# ---------------------------------------------------------------------------
 # Build request JSON (jq handles escaping of caption/lyrics)
 # ---------------------------------------------------------------------------
 
@@ -61,12 +63,12 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 REQUEST_FILE="$WORK_DIR/request.json"
 
 jq -n \
-    --arg      caption         "${CAPTION:-chiptune}" \
-    --arg      lyrics          "${LYRICS:-}" \
-    --argjson  duration        "${DURATION:-20}" \
-    --argjson  inference_steps "${INFERENCE_STEPS:-8}" \
-    --argjson  shift           "${SHIFT:-3}" \
-    --arg      vocal_language  "${VOCAL_LANGUAGE:-en}" \
+    --arg      caption         "${CAPTION}" \
+    --arg      lyrics          "${LYRICS}" \
+    --argjson  duration        "${DURATION}" \
+    --argjson  inference_steps "${INFERENCE_STEPS}" \
+    --argjson  shift           "${SHIFT}" \
+    --arg      vocal_language  "${VOCAL_LANGUAGE}" \
     '{
         task_type:       "text2music",
         caption:         $caption,
@@ -80,7 +82,7 @@ jq -n \
     }' > "$REQUEST_FILE"
 
 # Optionally add seed (must be a valid integer)
-if [ -n "${SEED:-}" ]; then
+if [ -n "${SEED}" ]; then
     jq --argjson seed "${SEED}" '. + {seed: $seed}' \
         "$REQUEST_FILE" > "${REQUEST_FILE}.tmp"
     mv "${REQUEST_FILE}.tmp" "$REQUEST_FILE"
@@ -123,14 +125,14 @@ OUTPUT_WAV="${REQUEST0_FILE%.json}0.wav"
 # Move output to requested location
 # ---------------------------------------------------------------------------
 
-mkdir -p "$(dirname "$OUTPUT_EXPANDED")"
-mv "$OUTPUT_WAV" "$OUTPUT_EXPANDED"
+mkdir -p "$(dirname "$OUTPUT_PATH")"
+mv "$OUTPUT_WAV" "$OUTPUT_PATH"
 
 END_TIME=$(date +%s)
 GENERATION_TIME=$(( END_TIME - START_TIME ))
 
 echo ""
-echo "Audio saved to: $OUTPUT_EXPANDED"
+echo "Audio saved to: $OUTPUT_PATH"
 echo "Generation time: ${GENERATION_TIME}s"
 
 # ---------------------------------------------------------------------------
@@ -138,6 +140,7 @@ echo "Generation time: ${GENERATION_TIME}s"
 # ---------------------------------------------------------------------------
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
-    echo "audio_file=${OUTPUT_EXPANDED}" >> "$GITHUB_OUTPUT"
+    echo "audio_file=${OUTPUT_PATH}" >> "$GITHUB_OUTPUT"
     echo "generation_time=${GENERATION_TIME}" >> "$GITHUB_OUTPUT"
 fi
+

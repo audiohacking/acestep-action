@@ -33,7 +33,7 @@ jobs:
         run: |
           echo "Generated audio file: ${{ steps.generate.outputs.audio_file }}"
           echo "Generation time: ${{ steps.generate.outputs.generation_time }} seconds"
-          ls -lh ${{ steps.generate.outputs.audio_file }}
+          ls -lh "${{ steps.generate.outputs.audio_file }}"
 
       - name: Upload audio artifact
         uses: actions/upload-artifact@v4

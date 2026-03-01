@@ -22,7 +22,7 @@ SEED="${INPUT_SEED:-}"
 INFERENCE_STEPS="${INPUT_INFERENCE_STEPS:-8}"
 SHIFT="${INPUT_SHIFT:-3}"
 VOCAL_LANGUAGE="${INPUT_VOCAL_LANGUAGE:-en}"
-OUTPUT_PATH="${INPUT_OUTPUT_PATH:-output.wav}"
+OUTPUT_PATH="${INPUT_OUTPUT_PATH:-}"
 
 # ---------------------------------------------------------------------------
 # Fixed in-image paths
@@ -49,8 +49,13 @@ fi
 # Resolve output path: relative paths are relative to $GITHUB_WORKSPACE
 # ---------------------------------------------------------------------------
 
-if [[ "$OUTPUT_PATH" != /* ]]; then
-    OUTPUT_PATH="${GITHUB_WORKSPACE:-/github/workspace}/${OUTPUT_PATH}"
+WORKSPACE_ROOT="${GITHUB_WORKSPACE:-/github/workspace}"
+
+# Default to workspace root if not specified
+if [ -z "$OUTPUT_PATH" ]; then
+    OUTPUT_PATH="${WORKSPACE_ROOT}/output.wav"
+elif [[ "$OUTPUT_PATH" != /* ]]; then
+    OUTPUT_PATH="${WORKSPACE_ROOT}/${OUTPUT_PATH}"
 fi
 
 # ---------------------------------------------------------------------------
@@ -132,8 +137,15 @@ END_TIME=$(date +%s)
 GENERATION_TIME=$(( END_TIME - START_TIME ))
 
 echo ""
-echo "Audio saved to: $OUTPUT_PATH"
-echo "Generation time: ${GENERATION_TIME}s"
+echo "=== Output ==="
+echo "Output path: $OUTPUT_PATH"
+if [ -f "$OUTPUT_PATH" ]; then
+    ls -lh "$OUTPUT_PATH"
+    echo "Generation time: ${GENERATION_TIME}s"
+else
+    echo "Error: generated file not found at $OUTPUT_PATH" >&2
+    exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # Set GitHub Actions outputs

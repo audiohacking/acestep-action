@@ -9,7 +9,7 @@
 #   /action/bin/dit-vae     — DiT flow-matching + Oobleck VAE
 #   /action/models/         — GGUF model files
 
-set -euo pipefail
+set -euxo pipefail
 
 # ---------------------------------------------------------------------------
 # Read inputs (Docker action convention: INPUT_<NAME>)
@@ -59,11 +59,33 @@ elif [[ "$OUTPUT_PATH" != /* ]]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Print variable context for debugging
+# ---------------------------------------------------------------------------
+
+echo "=== Variable context ==="
+echo "CAPTION=${CAPTION}"
+echo "LYRICS=${LYRICS}"
+echo "DURATION=${DURATION}"
+echo "SEED=${SEED}"
+echo "INFERENCE_STEPS=${INFERENCE_STEPS}"
+echo "SHIFT=${SHIFT}"
+echo "VOCAL_LANGUAGE=${VOCAL_LANGUAGE}"
+echo "OUTPUT_PATH=${OUTPUT_PATH}"
+echo "WORKSPACE_ROOT=${WORKSPACE_ROOT}"
+echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE:-<unset>}"
+
+echo "=== Directory listings (initial) ==="
+ls -lh /github/workspace || echo "(ls /github/workspace failed)"
+ls -lh /tmp || echo "(ls /tmp failed)"
+
+# ---------------------------------------------------------------------------
 # Build request JSON (jq handles escaping of caption/lyrics)
 # ---------------------------------------------------------------------------
 
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
+
+echo "WORK_DIR=${WORK_DIR}"
 
 REQUEST_FILE="$WORK_DIR/request.json"
 
@@ -126,12 +148,40 @@ echo "=== Stage 2: dit-vae (DiT + VAE) ==="
 # dit-vae writes requestN0.wav alongside the request0.json file
 OUTPUT_WAV="${REQUEST0_FILE%.json}0.wav"
 
+echo "=== Directory listings (pre-move) ==="
+echo "WORK_DIR=${WORK_DIR}"
+ls -lh "$WORK_DIR"
+ls -lh /tmp
+ls -lh /github/workspace || echo "(ls /github/workspace failed)"
+
 # ---------------------------------------------------------------------------
 # Move output to requested location
 # ---------------------------------------------------------------------------
 
+if [ ! -f "$OUTPUT_WAV" ]; then
+    echo "Error: expected output WAV not found at ${OUTPUT_WAV} — dit-vae may have failed or written to a different path" >&2
+    echo "WORK_DIR contents:" >&2
+    ls -lh "$WORK_DIR" >&2
+    ls -lh /tmp >&2
+    exit 1
+fi
+
 mkdir -p "$(dirname "$OUTPUT_PATH")"
 mv "$OUTPUT_WAV" "$OUTPUT_PATH"
+
+echo "=== Directory listings (post-move) ==="
+ls -lh "$WORK_DIR"
+ls -lh "$(dirname "$OUTPUT_PATH")"
+ls -lh /github/workspace || echo "(ls /github/workspace failed)"
+
+if [ ! -f "$OUTPUT_PATH" ]; then
+    echo "Error: move failed — file not found at ${OUTPUT_PATH}" >&2
+    echo "Source dir (${WORK_DIR}) contents:" >&2
+    ls -lh "$WORK_DIR" >&2
+    echo "Destination dir ($(dirname "$OUTPUT_PATH")) contents:" >&2
+    ls -lh "$(dirname "$OUTPUT_PATH")" >&2
+    exit 1
+fi
 
 # ---------------------------------------------------------------------------
 # Copy output to /github/workspace so it is accessible from subsequent steps.
@@ -143,22 +193,33 @@ mv "$OUTPUT_WAV" "$OUTPUT_PATH"
 ACTIONS_WORKSPACE="/github/workspace"
 ACTIONS_OUTPUT="${ACTIONS_WORKSPACE}/output.wav"
 
+echo "=== Directory listings (pre-copy) ==="
+ls -lh "$ACTIONS_WORKSPACE" || echo "(ls ${ACTIONS_WORKSPACE} failed)"
+
 if [ "$OUTPUT_PATH" != "$ACTIONS_OUTPUT" ]; then
     cp "$OUTPUT_PATH" "$ACTIONS_OUTPUT"
 fi
+
+echo "=== Directory listings (post-copy) ==="
+ls -lh "$ACTIONS_WORKSPACE" || echo "(ls ${ACTIONS_WORKSPACE} failed)"
 
 END_TIME=$(date +%s)
 GENERATION_TIME=$(( END_TIME - START_TIME ))
 
 echo ""
 echo "=== Output ==="
-echo "Output path (container): $OUTPUT_PATH"
-echo "Output path (workspace): $ACTIONS_OUTPUT"
+echo "OUTPUT_PATH=${OUTPUT_PATH}"
+echo "ACTIONS_WORKSPACE=${ACTIONS_WORKSPACE}"
+echo "ACTIONS_OUTPUT=${ACTIONS_OUTPUT}"
 if [ -f "$ACTIONS_OUTPUT" ]; then
     ls -lh "$ACTIONS_OUTPUT"
     echo "Generation time: ${GENERATION_TIME}s"
 else
-    echo "Error: generated file not found at $ACTIONS_OUTPUT" >&2
+    echo "Error: generated file not found at ${ACTIONS_OUTPUT}" >&2
+    echo "Directory listing of ${ACTIONS_WORKSPACE}:" >&2
+    ls -lh "$ACTIONS_WORKSPACE" >&2 || echo "(ls ${ACTIONS_WORKSPACE} failed)" >&2
+    echo "Directory listing of /tmp:" >&2
+    ls -lh /tmp >&2
     exit 1
 fi
 

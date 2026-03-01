@@ -133,17 +133,32 @@ OUTPUT_WAV="${REQUEST0_FILE%.json}0.wav"
 mkdir -p "$(dirname "$OUTPUT_PATH")"
 mv "$OUTPUT_WAV" "$OUTPUT_PATH"
 
+# ---------------------------------------------------------------------------
+# Copy output to /github/workspace so it is accessible from subsequent steps.
+# /github/workspace is bind-mounted by the runner and is the only path
+# guaranteed to be visible outside the container (see GitHub docs on
+# Dockerfile actions).
+# ---------------------------------------------------------------------------
+
+ACTIONS_WORKSPACE="/github/workspace"
+ACTIONS_OUTPUT="${ACTIONS_WORKSPACE}/output.wav"
+
+if [ "$OUTPUT_PATH" != "$ACTIONS_OUTPUT" ]; then
+    cp "$OUTPUT_PATH" "$ACTIONS_OUTPUT"
+fi
+
 END_TIME=$(date +%s)
 GENERATION_TIME=$(( END_TIME - START_TIME ))
 
 echo ""
 echo "=== Output ==="
-echo "Output path: $OUTPUT_PATH"
-if [ -f "$OUTPUT_PATH" ]; then
-    ls -lh "$OUTPUT_PATH"
+echo "Output path (container): $OUTPUT_PATH"
+echo "Output path (workspace): $ACTIONS_OUTPUT"
+if [ -f "$ACTIONS_OUTPUT" ]; then
+    ls -lh "$ACTIONS_OUTPUT"
     echo "Generation time: ${GENERATION_TIME}s"
 else
-    echo "Error: generated file not found at $OUTPUT_PATH" >&2
+    echo "Error: generated file not found at $ACTIONS_OUTPUT" >&2
     exit 1
 fi
 
@@ -152,7 +167,9 @@ fi
 # ---------------------------------------------------------------------------
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
-    echo "audio_file=${OUTPUT_PATH}" >> "$GITHUB_OUTPUT"
+    # Always point to /github/workspace/output.wav so subsequent steps can
+    # reliably access the file regardless of what output_path was specified.
+    echo "audio_file=${ACTIONS_OUTPUT}" >> "$GITHUB_OUTPUT"
     echo "generation_time=${GENERATION_TIME}" >> "$GITHUB_OUTPUT"
 fi
 

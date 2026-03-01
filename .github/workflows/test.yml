@@ -35,6 +35,11 @@ jobs:
           echo "Generation time: ${{ steps.generate.outputs.generation_time }} seconds"
           ls -lh "${{ steps.generate.outputs.audio_file }}"
 
+      - name: Debug - verify workspace file presence and format
+        run: |
+          ls -lh /github/workspace/output.wav
+          cat /github/workspace/output.wav | head -c 44 | base64
+
       - name: Upload audio artifact
         uses: actions/upload-artifact@v4
         with:

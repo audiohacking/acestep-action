@@ -30,10 +30,10 @@ RUN git clone --depth 1 --recurse-submodules \
     mkdir build && cd build && \
     cmake .. -DGGML_BLAS=ON -DCMAKE_BUILD_TYPE=Release && \
     cmake --build . --config Release -j$(nproc) && \
+    cmake --install . --prefix /usr/local && \
+    ldconfig && \
     mkdir -p /action/bin && \
     cp ace-qwen3 dit-vae /action/bin/ && \
-    cp libggml.so.0 /usr/local/lib/ && \
-    ldconfig && \
     cd / && rm -rf /tmp/acestep-cpp
 
 # ---------------------------------------------------------------------------

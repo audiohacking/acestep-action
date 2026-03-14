@@ -36,9 +36,9 @@ inputs:
     required: false
     default: 'en'
   output_path:
-    description: 'Output path for the generated WAV file (relative to workspace or absolute)'
+    description: 'Output path for the generated MP3 file (relative to workspace or absolute)'
     required: false
-    default: 'output.wav'
+    default: 'output.mp3'
   understand:
     description: 'Local file path or URL (http/https) to an MP3 or WAV audio file to analyze with ace-understand (activates understand mode — skips audio generation)'
     required: false
@@ -46,7 +46,7 @@ inputs:
 
 outputs:
   audio_file:
-    description: 'Path to the generated WAV audio file'
+    description: 'Path to the generated MP3 audio file'
   generation_time:
     description: 'Time taken to generate the audio in seconds'
   understand_result:

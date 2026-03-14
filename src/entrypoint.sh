@@ -72,6 +72,10 @@ if [ -n "${UNDERSTAND}" ]; then
     echo ""
     echo "=== Downloading audio ==="
     curl -fsSL --max-time 300 -o "${AUDIO_FILE}" "${UNDERSTAND}"
+    if [ ! -s "${AUDIO_FILE}" ]; then
+        echo "Error: downloaded audio file is missing or empty at ${AUDIO_FILE}" >&2
+        exit 1
+    fi
     echo "Downloaded: $(ls -lh "${AUDIO_FILE}")"
 
     UNDERSTAND_OUTPUT="$WORK_DIR/understand_result.json"

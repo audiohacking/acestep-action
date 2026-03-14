@@ -53,16 +53,23 @@ jobs:
   test-understand:
     runs-on: ubuntu-latest
     name: Test Audio Understanding
+    needs: test
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Analyze audio with ace-understand
+      - name: Download generated audio from test job
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-audio
+          path: ${{ github.workspace }}
+
+      - name: Analyze audio with ace-understand (dogfooding generated output)
         id: analyze
         uses: ./
         with:
-          understand: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+          understand: 'file:///github/workspace/output.wav'  # /github/workspace is $GITHUB_WORKSPACE bind-mounted inside the Docker action container
 
       - name: Check understand output
         run: |

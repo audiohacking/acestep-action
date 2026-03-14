@@ -27,13 +27,13 @@ jobs:
           lyrics: ''
           duration: '5'
           inference_steps: '4'
-          output_path: 'request00.mp3'
+          output_path: 'output.mp3'
 
       - name: Check output
         run: |
           echo "Generated audio file: ${{ steps.generate.outputs.audio_file }}"
           echo "Generation time: ${{ steps.generate.outputs.generation_time }} seconds"
-          ls -lh "${{ github.workspace }}/request00.mp3"
+          ls -lh "${{ github.workspace }}/output.mp3"
 
       - name: List workspace before upload
         run: ls -lh ${{ github.workspace }}
@@ -42,7 +42,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: generated-audio
-          path: ${{ github.workspace }}/request00.mp3
+          path: ${{ github.workspace }}/output.mp3
           retention-days: 5
 
   test-understand:
@@ -64,7 +64,7 @@ jobs:
         id: analyze
         uses: ./
         with:
-          understand: '/github/workspace/request00.mp3'
+          understand: '/github/workspace/output.mp3'
 
       - name: Check understand output
         run: |

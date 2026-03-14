@@ -40,7 +40,7 @@ inputs:
     required: false
     default: 'output.wav'
   understand:
-    description: 'URL to an MP3 or WAV audio file to analyze with ace-understand (activates understand mode — skips audio generation)'
+    description: 'Local file path or URL (http/https) to an MP3 or WAV audio file to analyze with ace-understand (activates understand mode — skips audio generation)'
     required: false
     default: ''
 

@@ -69,16 +69,25 @@ jobs:
 
 ### Analyze an existing audio file
 
-Supply a URL to an MP3 or WAV file via the `understand` input.  
-The action downloads the audio, runs `ace-understand`, and returns the analysis as JSON in the `understand_result` output.  
+Supply a local file path or a URL (http/https) to an MP3 or WAV file via the `understand` input.  
+The action uses the file directly if a path is given, or downloads it first if a URL is provided.  
+It then runs `ace-understand` and returns the analysis as JSON in the `understand_result` output.  
 Audio generation is **skipped** when `understand` is set.
 
 ```yaml
-- name: Analyze audio
+# From a URL
+- name: Analyze audio (URL)
   id: analyze
   uses: audiohacking/acestep-action@main
   with:
     understand: 'https://example.com/song.mp3'
+
+# From a local path (e.g. a file already in the workspace)
+- name: Analyze audio (local file)
+  id: analyze
+  uses: audiohacking/acestep-action@main
+  with:
+    understand: '/github/workspace/output.wav'
 
 - name: Show analysis
   run: echo '${{ steps.analyze.outputs.understand_result }}'
@@ -96,7 +105,7 @@ Audio generation is **skipped** when `understand` is set.
 | `shift` | Flow-matching shift parameter | No | `3` |
 | `vocal_language` | Vocal language code (`en`, `fr`, …) | No | `en` |
 | `output_path` | Output path for the generated WAV file | No | `output.wav` |
-| `understand` | URL to an MP3 or WAV file to analyze (activates understand mode — skips generation) | No | _(empty)_ |
+| `understand` | Local file path or URL (http/https) to an MP3 or WAV file to analyze (activates understand mode — skips generation) | No | _(empty)_ |
 
 ## Outputs
 
@@ -128,8 +137,8 @@ At runtime the entrypoint (`src/entrypoint.sh`):
 3. Runs `dit-vae` (DiT + VAE stage: JSON → stereo 48 kHz WAV)
 4. Moves the output WAV to the requested path in `$GITHUB_WORKSPACE`
 
-**Understand mode** (when `understand` URL is provided):
-1. Downloads the audio file from the supplied URL
+**Understand mode** (when `understand` is provided):
+1. If a URL (http/https/ftp/file) is given, downloads the audio file; if a local path is given, uses it directly
 2. Runs `ace-understand` (VAE encode → FSQ tokenize → LM understand → JSON)
 3. Emits the resulting JSON as the `understand_result` action output
 

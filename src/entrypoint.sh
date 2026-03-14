@@ -63,20 +63,37 @@ if [ -n "${UNDERSTAND}" ]; then
     echo "=== ace-understand mode ==="
     echo "UNDERSTAND=${UNDERSTAND}"
 
-    # Derive a sensible local filename from the URL extension
+    # Determine whether the input is a URL (requires curl) or a local path
     case "${UNDERSTAND}" in
-        *.wav|*.WAV) AUDIO_FILE="$WORK_DIR/input.wav" ;;
-        *)           AUDIO_FILE="$WORK_DIR/input.mp3" ;;
+        http://*|https://*|ftp://*|file://*)
+            # URL — derive a local filename from the extension and download
+            case "${UNDERSTAND}" in
+                *.wav|*.WAV) AUDIO_FILE="$WORK_DIR/input.wav" ;;
+                *)           AUDIO_FILE="$WORK_DIR/input.mp3" ;;
+            esac
+            echo ""
+            echo "=== Downloading audio ==="
+            curl -fsSL --max-time 300 -o "${AUDIO_FILE}" "${UNDERSTAND}"
+            if [ ! -s "${AUDIO_FILE}" ]; then
+                echo "Error: downloaded audio file is missing or empty at ${AUDIO_FILE}" >&2
+                exit 1
+            fi
+            echo "Downloaded: $(ls -lh "${AUDIO_FILE}")"
+            ;;
+        *)
+            # Local path — use directly (no download needed)
+            AUDIO_FILE="${UNDERSTAND}"
+            if [ ! -f "${AUDIO_FILE}" ]; then
+                echo "Error: local audio file not found at ${AUDIO_FILE}" >&2
+                exit 1
+            fi
+            if [ ! -s "${AUDIO_FILE}" ]; then
+                echo "Error: local audio file is empty at ${AUDIO_FILE}" >&2
+                exit 1
+            fi
+            echo "Using local file: $(ls -lh "${AUDIO_FILE}")"
+            ;;
     esac
-
-    echo ""
-    echo "=== Downloading audio ==="
-    curl -fsSL --max-time 300 -o "${AUDIO_FILE}" "${UNDERSTAND}"
-    if [ ! -s "${AUDIO_FILE}" ]; then
-        echo "Error: downloaded audio file is missing or empty at ${AUDIO_FILE}" >&2
-        exit 1
-    fi
-    echo "Downloaded: $(ls -lh "${AUDIO_FILE}")"
 
     UNDERSTAND_OUTPUT="$WORK_DIR/understand_result.json"
 

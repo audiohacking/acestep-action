@@ -69,7 +69,7 @@ jobs:
         id: analyze
         uses: ./
         with:
-          understand: 'file:///github/workspace/output.wav'  # /github/workspace is $GITHUB_WORKSPACE bind-mounted inside the Docker action container
+          understand: '/github/workspace/output.wav'
 
       - name: Check understand output
         run: |

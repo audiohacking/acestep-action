@@ -33,7 +33,7 @@ RUN git clone --depth 1 --recurse-submodules \
     cmake --install . --prefix /usr/local && \
     ldconfig && \
     mkdir -p /action/bin && \
-    cp ace-qwen3 dit-vae /action/bin/ && \
+    cp ace-qwen3 dit-vae ace-undestand /action/bin/ && \
     cd / && rm -rf /tmp/acestep-cpp
 
 # ---------------------------------------------------------------------------

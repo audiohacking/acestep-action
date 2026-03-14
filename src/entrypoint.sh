@@ -68,7 +68,7 @@ if [ -n "${UNDERSTAND}" ]; then
         http://*|https://*|ftp://*|file://*)
             # URL — derive a local filename from the extension and download
             case "${UNDERSTAND}" in
-                *.wav|*.WAV) AUDIO_FILE="$WORK_DIR/input.wav" ;;
+                *.mp3|*.MP3) AUDIO_FILE="$WORK_DIR/input.mp3" ;;
                 *)           AUDIO_FILE="$WORK_DIR/input.mp3" ;;
             esac
             echo ""
@@ -133,7 +133,7 @@ WORKSPACE_ROOT="${GITHUB_WORKSPACE:-/github/workspace}"
 
 # Default to workspace root if not specified
 if [ -z "$OUTPUT_PATH" ]; then
-    OUTPUT_PATH="${WORKSPACE_ROOT}/output.wav"
+    OUTPUT_PATH="${WORKSPACE_ROOT}/output.mp3"
 elif [[ "$OUTPUT_PATH" != /* ]]; then
     OUTPUT_PATH="${WORKSPACE_ROOT}/${OUTPUT_PATH}"
 fi
@@ -215,7 +215,7 @@ echo "=== Stage 1: ace-qwen3 (LLM) ==="
 REQUEST0_FILE="${REQUEST_FILE%.json}0.json"
 
 # ---------------------------------------------------------------------------
-# Stage 2 — DiT + VAE: synthesises stereo 48 kHz WAV → request00.wav
+# Stage 2 — DiT + VAE: synthesises stereo 48 kHz WAV → request00.mp3
 # ---------------------------------------------------------------------------
 
 echo ""
@@ -226,8 +226,8 @@ echo "=== Stage 2: dit-vae (DiT + VAE) ==="
     --dit          "$MODEL_DIR/acestep-v15-turbo-Q8_0.gguf" \
     --vae          "$MODEL_DIR/vae-BF16.gguf"
 
-# dit-vae writes requestN0.wav alongside the request0.json file
-OUTPUT_WAV="${REQUEST0_FILE%.json}0.wav"
+# dit-vae writes requestN0.mp3 alongside the request0.json file
+OUTPUT_WAV="${REQUEST0_FILE%.json}0.mp3"
 
 echo "=== Directory listings (pre-move) ==="
 echo "WORK_DIR=${WORK_DIR}"
@@ -272,7 +272,7 @@ fi
 # ---------------------------------------------------------------------------
 
 ACTIONS_WORKSPACE="/github/workspace"
-ACTIONS_OUTPUT="${ACTIONS_WORKSPACE}/output.wav"
+ACTIONS_OUTPUT="${ACTIONS_WORKSPACE}/output.mp3"
 
 echo "=== Directory listings (pre-copy) ==="
 ls -lh "$ACTIONS_WORKSPACE" || echo "(ls ${ACTIONS_WORKSPACE} failed)"
@@ -309,7 +309,7 @@ fi
 # ---------------------------------------------------------------------------
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
-    # Always point to /github/workspace/output.wav so subsequent steps can
+    # Always point to /github/workspace/output.mp3 so subsequent steps can
     # reliably access the file regardless of what output_path was specified.
     echo "audio_file=${ACTIONS_OUTPUT}" >> "$GITHUB_OUTPUT"
     echo "generation_time=${GENERATION_TIME}" >> "$GITHUB_OUTPUT"

@@ -10,6 +10,7 @@ The pre-built Docker image ships with compiled `ace-qwen3`/`dit-vae` binaries **
 
 - 🎵 Generate high-quality music from a text caption
 - 🖊️ Optional lyrics — or let the LLM write them for you
+- 🔍 Analyze existing audio with `ace-understand` — extract caption, lyrics, BPM, key, duration, and language
 - ⚡ Native C++17 / GGML engine — lightweight, no GPU required
 - 🐳 Pre-built Docker image with models included — zero download wait
 - 🎲 Reproducible generation with optional seed
@@ -66,6 +67,23 @@ jobs:
     path: ${{ steps.audio.outputs.audio_file }}
 ```
 
+### Analyze an existing audio file
+
+Supply a URL to an MP3 or WAV file via the `understand` input.  
+The action downloads the audio, runs `ace-understand`, and returns the analysis as JSON in the `understand_result` output.  
+Audio generation is **skipped** when `understand` is set.
+
+```yaml
+- name: Analyze audio
+  id: analyze
+  uses: audiohacking/acestep-action@main
+  with:
+    understand: 'https://example.com/song.mp3'
+
+- name: Show analysis
+  run: echo '${{ steps.analyze.outputs.understand_result }}'
+```
+
 ## Inputs
 
 | Input | Description | Required | Default |
@@ -78,6 +96,7 @@ jobs:
 | `shift` | Flow-matching shift parameter | No | `3` |
 | `vocal_language` | Vocal language code (`en`, `fr`, …) | No | `en` |
 | `output_path` | Output path for the generated WAV file | No | `output.wav` |
+| `understand` | URL to an MP3 or WAV file to analyze (activates understand mode — skips generation) | No | _(empty)_ |
 
 ## Outputs
 
@@ -85,6 +104,7 @@ jobs:
 |--------|-------------|
 | `audio_file` | Path to the generated WAV audio file |
 | `generation_time` | Time taken to generate the audio in seconds |
+| `understand_result` | JSON from `ace-understand`: caption, lyrics, BPM, key, duration, language |
 
 ## How it works
 
@@ -94,16 +114,24 @@ The action runs as a **pre-built Docker container** published to GitHub Containe
 |------|---------------|
 | `ace-qwen3` binary (Qwen3 causal LM) | `/action/bin/ace-qwen3` |
 | `dit-vae` binary (DiT + Oobleck VAE) | `/action/bin/dit-vae` |
+| `ace-understand` binary (reverse pipeline) | `/action/bin/ace-understand` |
 | `Qwen3-Embedding-0.6B-Q8_0.gguf` | `/action/models/` |
 | `acestep-5Hz-lm-4B-Q8_0.gguf` | `/action/models/` |
 | `acestep-v15-turbo-Q8_0.gguf` | `/action/models/` |
 | `vae-BF16.gguf` | `/action/models/` |
 
 At runtime the entrypoint (`src/entrypoint.sh`):
+
+**Generation mode** (default — when `understand` is not set):
 1. Builds a request JSON from inputs
 2. Runs `ace-qwen3` (LLM stage: caption → enriched JSON with lyrics + audio codes)
 3. Runs `dit-vae` (DiT + VAE stage: JSON → stereo 48 kHz WAV)
 4. Moves the output WAV to the requested path in `$GITHUB_WORKSPACE`
+
+**Understand mode** (when `understand` URL is provided):
+1. Downloads the audio file from the supplied URL
+2. Runs `ace-understand` (VAE encode → FSQ tokenize → LM understand → JSON)
+3. Emits the resulting JSON as the `understand_result` action output
 
 **Image location:** `ghcr.io/audiohacking/acestep-action:latest`
 

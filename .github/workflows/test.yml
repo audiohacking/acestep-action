@@ -50,3 +50,27 @@ jobs:
           path: ${{ github.workspace }}/output.wav
           retention-days: 5
 
+  test-understand:
+    runs-on: ubuntu-latest
+    name: Test Audio Understanding
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Analyze audio with ace-understand
+        id: analyze
+        uses: ./
+        with:
+          understand: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+
+      - name: Check understand output
+        run: |
+          echo "understand_result: ${{ steps.analyze.outputs.understand_result }}"
+          # Verify the output is non-empty valid JSON
+          echo '${{ steps.analyze.outputs.understand_result }}' | jq .
+          # Verify expected metadata fields are present
+          echo '${{ steps.analyze.outputs.understand_result }}' | jq -e 'has("caption")'
+          echo '${{ steps.analyze.outputs.understand_result }}' | jq -e 'has("lyrics")'
+          echo '${{ steps.analyze.outputs.understand_result }}' | jq -e 'has("bpm")'
+

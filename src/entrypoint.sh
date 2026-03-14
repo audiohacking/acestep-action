@@ -23,6 +23,7 @@ INFERENCE_STEPS="${INPUT_INFERENCE_STEPS:-8}"
 SHIFT="${INPUT_SHIFT:-3}"
 VOCAL_LANGUAGE="${INPUT_VOCAL_LANGUAGE:-en}"
 OUTPUT_PATH="${INPUT_OUTPUT_PATH:-}"
+UNDERSTAND="${INPUT_UNDERSTAND:-}"
 
 # ---------------------------------------------------------------------------
 # Fixed in-image paths
@@ -31,6 +32,7 @@ OUTPUT_PATH="${INPUT_OUTPUT_PATH:-}"
 MODEL_DIR="/action/models"
 ACE_QWEN3="/action/bin/ace-qwen3"
 DIT_VAE="/action/bin/dit-vae"
+ACE_UNDERSTAND="/action/bin/ace-understand"
 
 # ---------------------------------------------------------------------------
 # Validate binaries
@@ -43,6 +45,63 @@ fi
 if [ ! -x "$DIT_VAE" ]; then
     echo "Error: dit-vae binary not found at $DIT_VAE" >&2
     exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# Understand mode — download audio and run ace-understand, then exit
+# ---------------------------------------------------------------------------
+
+if [ -n "${UNDERSTAND}" ]; then
+    if [ ! -x "$ACE_UNDERSTAND" ]; then
+        echo "Error: ace-understand binary not found at $ACE_UNDERSTAND" >&2
+        exit 1
+    fi
+
+    WORK_DIR=$(mktemp -d)
+    trap 'rm -rf "$WORK_DIR"' EXIT
+
+    echo "=== ace-understand mode ==="
+    echo "UNDERSTAND=${UNDERSTAND}"
+
+    # Derive a sensible local filename from the URL extension
+    case "${UNDERSTAND}" in
+        *.wav|*.WAV) AUDIO_FILE="$WORK_DIR/input.wav" ;;
+        *)           AUDIO_FILE="$WORK_DIR/input.mp3" ;;
+    esac
+
+    echo ""
+    echo "=== Downloading audio ==="
+    curl -fsSL --max-time 300 -o "${AUDIO_FILE}" "${UNDERSTAND}"
+    echo "Downloaded: $(ls -lh "${AUDIO_FILE}")"
+
+    UNDERSTAND_OUTPUT="$WORK_DIR/understand_result.json"
+
+    echo ""
+    echo "=== Running ace-understand ==="
+    "$ACE_UNDERSTAND" \
+        --src-audio "${AUDIO_FILE}" \
+        --dit       "$MODEL_DIR/acestep-v15-turbo-Q8_0.gguf" \
+        --vae       "$MODEL_DIR/vae-BF16.gguf" \
+        --model     "$MODEL_DIR/acestep-5Hz-lm-4B-Q8_0.gguf" \
+        -o          "${UNDERSTAND_OUTPUT}"
+
+    echo ""
+    echo "=== ace-understand result ==="
+    cat "${UNDERSTAND_OUTPUT}"
+
+    # Set GitHub Actions output (multiline-safe heredoc with random delimiter)
+    if [ -n "${GITHUB_OUTPUT:-}" ]; then
+        DELIM="EOF_$$_${RANDOM}"
+        {
+            echo "understand_result<<${DELIM}"
+            cat "${UNDERSTAND_OUTPUT}"
+            echo "${DELIM}"
+        } >> "$GITHUB_OUTPUT"
+    fi
+
+    echo ""
+    echo "=== ace-understand complete ==="
+    exit 0
 fi
 
 # ---------------------------------------------------------------------------
@@ -71,6 +130,7 @@ echo "INFERENCE_STEPS=${INFERENCE_STEPS}"
 echo "SHIFT=${SHIFT}"
 echo "VOCAL_LANGUAGE=${VOCAL_LANGUAGE}"
 echo "OUTPUT_PATH=${OUTPUT_PATH}"
+echo "UNDERSTAND=${UNDERSTAND}"
 echo "WORKSPACE_ROOT=${WORKSPACE_ROOT}"
 echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE:-<unset>}"
 

@@ -18,6 +18,7 @@ RUN apt-get update && \
         libopenblas-dev \
         python3-pip \
         jq \
+        curl \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
@@ -33,7 +34,7 @@ RUN git clone --depth 1 --recurse-submodules \
     cmake --install . --prefix /usr/local && \
     ldconfig && \
     mkdir -p /action/bin && \
-    cp ace-qwen3 dit-vae ace-undestand /action/bin/ && \
+    cp ace-qwen3 dit-vae ace-understand /action/bin/ && \
     cd / && rm -rf /tmp/acestep-cpp
 
 # ---------------------------------------------------------------------------

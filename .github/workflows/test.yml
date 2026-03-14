@@ -27,18 +27,13 @@ jobs:
           lyrics: ''
           duration: '5'
           inference_steps: '4'
-          output_path: 'output.wav'
+          output_path: 'output.mp3'
 
       - name: Check output
         run: |
           echo "Generated audio file: ${{ steps.generate.outputs.audio_file }}"
           echo "Generation time: ${{ steps.generate.outputs.generation_time }} seconds"
-          ls -lh "${{ github.workspace }}/output.wav"
-
-      - name: Debug - verify workspace file presence and format
-        run: |
-          ls -lh "${{ github.workspace }}/output.wav"
-          cat "${{ github.workspace }}/output.wav" | head -c 44 | base64
+          ls -lh "${{ github.workspace }}/output.mp3"
 
       - name: List workspace before upload
         run: ls -lh ${{ github.workspace }}
@@ -47,6 +42,37 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: generated-audio
-          path: ${{ github.workspace }}/output.wav
+          path: ${{ github.workspace }}/output.mp3
           retention-days: 5
+
+  test-understand:
+    runs-on: ubuntu-latest
+    name: Test Audio Understanding
+    needs: test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download generated audio from test job
+        uses: actions/download-artifact@v4
+        with:
+          name: generated-audio
+          path: ${{ github.workspace }}
+
+      - name: Analyze audio with ace-understand (dogfooding generated output)
+        id: analyze
+        uses: ./
+        with:
+          understand: '/github/workspace/output.mp3'
+
+      - name: Check understand output
+        run: |
+          echo "understand_result: ${{ steps.analyze.outputs.understand_result }}"
+          # Verify the output is non-empty valid JSON
+          echo '${{ steps.analyze.outputs.understand_result }}' | jq .
+          # Verify expected metadata fields are present
+          echo '${{ steps.analyze.outputs.understand_result }}' | jq -e 'has("caption")'
+          echo '${{ steps.analyze.outputs.understand_result }}' | jq -e 'has("lyrics")'
+          echo '${{ steps.analyze.outputs.understand_result }}' | jq -e 'has("bpm")'
 

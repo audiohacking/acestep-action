@@ -23,6 +23,7 @@ INFERENCE_STEPS="${INPUT_INFERENCE_STEPS:-8}"
 SHIFT="${INPUT_SHIFT:-3}"
 VOCAL_LANGUAGE="${INPUT_VOCAL_LANGUAGE:-en}"
 OUTPUT_PATH="${INPUT_OUTPUT_PATH:-}"
+UNDERSTAND="${INPUT_UNDERSTAND:-}"
 
 # ---------------------------------------------------------------------------
 # Fixed in-image paths
@@ -31,6 +32,7 @@ OUTPUT_PATH="${INPUT_OUTPUT_PATH:-}"
 MODEL_DIR="/action/models"
 ACE_QWEN3="/action/bin/ace-qwen3"
 DIT_VAE="/action/bin/dit-vae"
+ACE_UNDERSTAND="/action/bin/ace-understand"
 
 # ---------------------------------------------------------------------------
 # Validate binaries
@@ -46,6 +48,84 @@ if [ ! -x "$DIT_VAE" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# Understand mode — download audio and run ace-understand, then exit
+# ---------------------------------------------------------------------------
+
+if [ -n "${UNDERSTAND}" ]; then
+    if [ ! -x "$ACE_UNDERSTAND" ]; then
+        echo "Error: ace-understand binary not found at $ACE_UNDERSTAND" >&2
+        exit 1
+    fi
+
+    WORK_DIR=$(mktemp -d)
+    trap 'rm -rf "$WORK_DIR"' EXIT
+
+    echo "=== ace-understand mode ==="
+    echo "UNDERSTAND=${UNDERSTAND}"
+
+    # Determine whether the input is a URL (requires curl) or a local path
+    case "${UNDERSTAND}" in
+        http://*|https://*|ftp://*|file://*)
+            # URL — derive a local filename from the extension and download
+            case "${UNDERSTAND}" in
+                *.mp3|*.MP3) AUDIO_FILE="$WORK_DIR/input.mp3" ;;
+                *)           AUDIO_FILE="$WORK_DIR/input.mp3" ;;
+            esac
+            echo ""
+            echo "=== Downloading audio ==="
+            curl -fsSL --max-time 300 -o "${AUDIO_FILE}" "${UNDERSTAND}"
+            if [ ! -s "${AUDIO_FILE}" ]; then
+                echo "Error: downloaded audio file is missing or empty at ${AUDIO_FILE}" >&2
+                exit 1
+            fi
+            echo "Downloaded: $(ls -lh "${AUDIO_FILE}")"
+            ;;
+        *)
+            # Local path — use directly (no download needed)
+            AUDIO_FILE="${UNDERSTAND}"
+            if [ ! -f "${AUDIO_FILE}" ]; then
+                echo "Error: local audio file not found at ${AUDIO_FILE}" >&2
+                exit 1
+            fi
+            if [ ! -s "${AUDIO_FILE}" ]; then
+                echo "Error: local audio file is empty at ${AUDIO_FILE}" >&2
+                exit 1
+            fi
+            echo "Using local file: $(ls -lh "${AUDIO_FILE}")"
+            ;;
+    esac
+
+    UNDERSTAND_OUTPUT="$WORK_DIR/understand_result.json"
+
+    echo ""
+    echo "=== Running ace-understand ==="
+    "$ACE_UNDERSTAND" \
+        --src-audio "${AUDIO_FILE}" \
+        --dit       "$MODEL_DIR/acestep-v15-turbo-Q8_0.gguf" \
+        --vae       "$MODEL_DIR/vae-BF16.gguf" \
+        --model     "$MODEL_DIR/acestep-5Hz-lm-4B-Q8_0.gguf" \
+        -o          "${UNDERSTAND_OUTPUT}"
+
+    echo ""
+    echo "=== ace-understand result ==="
+    cat "${UNDERSTAND_OUTPUT}"
+
+    # Set GitHub Actions output (multiline-safe heredoc with random delimiter)
+    if [ -n "${GITHUB_OUTPUT:-}" ]; then
+        DELIM="EOF_$$_${RANDOM}"
+        {
+            echo "understand_result<<${DELIM}"
+            cat "${UNDERSTAND_OUTPUT}"
+            echo "${DELIM}"
+        } >> "$GITHUB_OUTPUT"
+    fi
+
+    echo ""
+    echo "=== ace-understand complete ==="
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
 # Resolve output path: relative paths are relative to $GITHUB_WORKSPACE
 # ---------------------------------------------------------------------------
 
@@ -53,7 +133,7 @@ WORKSPACE_ROOT="${GITHUB_WORKSPACE:-/github/workspace}"
 
 # Default to workspace root if not specified
 if [ -z "$OUTPUT_PATH" ]; then
-    OUTPUT_PATH="${WORKSPACE_ROOT}/output.wav"
+    OUTPUT_PATH="${WORKSPACE_ROOT}/output.mp3"
 elif [[ "$OUTPUT_PATH" != /* ]]; then
     OUTPUT_PATH="${WORKSPACE_ROOT}/${OUTPUT_PATH}"
 fi
@@ -71,6 +151,7 @@ echo "INFERENCE_STEPS=${INFERENCE_STEPS}"
 echo "SHIFT=${SHIFT}"
 echo "VOCAL_LANGUAGE=${VOCAL_LANGUAGE}"
 echo "OUTPUT_PATH=${OUTPUT_PATH}"
+echo "UNDERSTAND=${UNDERSTAND}"
 echo "WORKSPACE_ROOT=${WORKSPACE_ROOT}"
 echo "GITHUB_WORKSPACE=${GITHUB_WORKSPACE:-<unset>}"
 
@@ -134,7 +215,7 @@ echo "=== Stage 1: ace-qwen3 (LLM) ==="
 REQUEST0_FILE="${REQUEST_FILE%.json}0.json"
 
 # ---------------------------------------------------------------------------
-# Stage 2 — DiT + VAE: synthesises stereo 48 kHz WAV → request00.wav
+# Stage 2 — DiT + VAE: synthesises stereo 48 kHz WAV → request00.mp3
 # ---------------------------------------------------------------------------
 
 echo ""
@@ -145,8 +226,8 @@ echo "=== Stage 2: dit-vae (DiT + VAE) ==="
     --dit          "$MODEL_DIR/acestep-v15-turbo-Q8_0.gguf" \
     --vae          "$MODEL_DIR/vae-BF16.gguf"
 
-# dit-vae writes requestN0.wav alongside the request0.json file
-OUTPUT_WAV="${REQUEST0_FILE%.json}0.wav"
+# dit-vae writes requestN0.mp3 alongside the request0.json file
+OUTPUT_WAV="${REQUEST0_FILE%.json}0.mp3"
 
 echo "=== Directory listings (pre-move) ==="
 echo "WORK_DIR=${WORK_DIR}"
@@ -191,7 +272,7 @@ fi
 # ---------------------------------------------------------------------------
 
 ACTIONS_WORKSPACE="/github/workspace"
-ACTIONS_OUTPUT="${ACTIONS_WORKSPACE}/output.wav"
+ACTIONS_OUTPUT="${ACTIONS_WORKSPACE}/output.mp3"
 
 echo "=== Directory listings (pre-copy) ==="
 ls -lh "$ACTIONS_WORKSPACE" || echo "(ls ${ACTIONS_WORKSPACE} failed)"
@@ -228,7 +309,7 @@ fi
 # ---------------------------------------------------------------------------
 
 if [ -n "${GITHUB_OUTPUT:-}" ]; then
-    # Always point to /github/workspace/output.wav so subsequent steps can
+    # Always point to /github/workspace/output.mp3 so subsequent steps can
     # reliably access the file regardless of what output_path was specified.
     echo "audio_file=${ACTIONS_OUTPUT}" >> "$GITHUB_OUTPUT"
     echo "generation_time=${GENERATION_TIME}" >> "$GITHUB_OUTPUT"

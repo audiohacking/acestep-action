@@ -18,6 +18,7 @@ RUN apt-get update && \
         libopenblas-dev \
         python3-pip \
         jq \
+        curl \
         ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 

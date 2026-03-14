@@ -215,7 +215,7 @@ echo "=== Stage 1: ace-qwen3 (LLM) ==="
 REQUEST0_FILE="${REQUEST_FILE%.json}0.json"
 
 # ---------------------------------------------------------------------------
-# Stage 2 — DiT + VAE: synthesises stereo 48 kHz WAV → request00.mp3
+# Stage 2 — DiT + VAE: synthesises stereo 48 kHz MP3 → request00.mp3
 # ---------------------------------------------------------------------------
 
 echo ""
@@ -227,7 +227,7 @@ echo "=== Stage 2: dit-vae (DiT + VAE) ==="
     --vae          "$MODEL_DIR/vae-BF16.gguf"
 
 # dit-vae writes requestN0.mp3 alongside the request0.json file
-OUTPUT_WAV="${REQUEST0_FILE%.json}0.mp3"
+OUTPUT_MP3="${REQUEST0_FILE%.json}0.mp3"
 
 echo "=== Directory listings (pre-move) ==="
 echo "WORK_DIR=${WORK_DIR}"
@@ -239,8 +239,8 @@ ls -lh /github/workspace || echo "(ls /github/workspace failed)"
 # Move output to requested location
 # ---------------------------------------------------------------------------
 
-if [ ! -f "$OUTPUT_WAV" ]; then
-    echo "Error: expected output WAV not found at ${OUTPUT_WAV} — dit-vae may have failed or written to a different path" >&2
+if [ ! -f "$OUTPUT_MP3" ]; then
+    echo "Error: expected output MP3 not found at ${OUTPUT_MP3} — dit-vae may have failed or written to a different path" >&2
     echo "WORK_DIR contents:" >&2
     ls -lh "$WORK_DIR" >&2
     ls -lh /tmp >&2
@@ -248,7 +248,7 @@ if [ ! -f "$OUTPUT_WAV" ]; then
 fi
 
 mkdir -p "$(dirname "$OUTPUT_PATH")"
-mv "$OUTPUT_WAV" "$OUTPUT_PATH"
+mv "$OUTPUT_MP3" "$OUTPUT_PATH"
 
 echo "=== Directory listings (post-move) ==="
 ls -lh "$WORK_DIR"

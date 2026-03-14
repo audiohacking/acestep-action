@@ -1,7 +1,7 @@
 # Ace-Step Audio Generation Action
 
 A GitHub Action that generates music from text prompts using [Ace-Step 1.5](https://github.com/ACE-Step/ACE-Step-1.5) via the native [acestep.cpp](https://github.com/audiohacking/acestep.cpp) engine.  
-Text + optional lyrics in, stereo 48 kHz WAV out.
+Text + optional lyrics in, stereo 48 kHz MP3 out.
 
 **No Python. No PyTorch. No waiting.**  
 The pre-built Docker image ships with compiled `ace-qwen3`/`dit-vae` binaries **and** all ~7.7 GB of pre-quantized GGUF models baked in — action execution starts immediately.
@@ -54,7 +54,7 @@ jobs:
       Melodies that go around
     duration: '30'
     seed: '42'
-    output_path: 'generated_music.wav'
+    output_path: 'generated_music.mp3'
 ```
 
 ### Upload the result as an artifact
@@ -87,7 +87,7 @@ Audio generation is **skipped** when `understand` is set.
   id: analyze
   uses: audiohacking/acestep-action@main
   with:
-    understand: '/github/workspace/output.wav'
+    understand: '/github/workspace/output.mp3'
 
 - name: Show analysis
   run: echo '${{ steps.analyze.outputs.understand_result }}'
@@ -104,14 +104,14 @@ Audio generation is **skipped** when `understand` is set.
 | `inference_steps` | Number of DiT inference steps | No | `8` |
 | `shift` | Flow-matching shift parameter | No | `3` |
 | `vocal_language` | Vocal language code (`en`, `fr`, …) | No | `en` |
-| `output_path` | Output path for the generated WAV file | No | `output.wav` |
+| `output_path` | Output path for the generated MP3 file | No | `output.mp3` |
 | `understand` | Local file path or URL (http/https) to an MP3 or WAV file to analyze (activates understand mode — skips generation) | No | _(empty)_ |
 
 ## Outputs
 
 | Output | Description |
 |--------|-------------|
-| `audio_file` | Path to the generated WAV audio file |
+| `audio_file` | Path to the generated MP3 audio file |
 | `generation_time` | Time taken to generate the audio in seconds |
 | `understand_result` | JSON from `ace-understand`: caption, lyrics, BPM, key, duration, language |
 
@@ -134,8 +134,8 @@ At runtime the entrypoint (`src/entrypoint.sh`):
 **Generation mode** (default — when `understand` is not set):
 1. Builds a request JSON from inputs
 2. Runs `ace-qwen3` (LLM stage: caption → enriched JSON with lyrics + audio codes)
-3. Runs `dit-vae` (DiT + VAE stage: JSON → stereo 48 kHz WAV)
-4. Moves the output WAV to the requested path in `$GITHUB_WORKSPACE`
+3. Runs `dit-vae` (DiT + VAE stage: JSON → stereo 48 kHz MP3)
+4. Moves the output MP3 to the requested path in `$GITHUB_WORKSPACE`
 
 **Understand mode** (when `understand` is provided):
 1. If a URL (http/https/ftp/file) is given, downloads the audio file; if a local path is given, uses it directly

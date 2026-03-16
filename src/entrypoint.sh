@@ -5,8 +5,8 @@
 # INPUT_<NAME> environment variables.  Binaries and models are pre-installed
 # in the Docker image at build time:
 #
-#   /action/bin/ace-qwen3   — Qwen3 causal LM (audio codes)
-#   /action/bin/dit-vae     — DiT flow-matching + Oobleck VAE
+#   /action/bin/ace-lm   — Qwen3 causal LM (audio codes)
+#   /action/bin/ace-synth     — DiT flow-matching + Oobleck VAE
 #   /action/models/         — GGUF model files
 
 set -euxo pipefail
@@ -30,8 +30,8 @@ UNDERSTAND="${INPUT_UNDERSTAND:-}"
 # ---------------------------------------------------------------------------
 
 MODEL_DIR="/action/models"
-ACE_QWEN3="/action/bin/ace-qwen3"
-DIT_VAE="/action/bin/dit-vae"
+ACE_QWEN3="/action/bin/ace-lm"
+DIT_VAE="/action/bin/ace-synth"
 ACE_UNDERSTAND="/action/bin/ace-understand"
 
 # ---------------------------------------------------------------------------
@@ -39,11 +39,11 @@ ACE_UNDERSTAND="/action/bin/ace-understand"
 # ---------------------------------------------------------------------------
 
 if [ ! -x "$ACE_QWEN3" ]; then
-    echo "Error: ace-qwen3 binary not found at $ACE_QWEN3" >&2
+    echo "Error: ace-lm binary not found at $ACE_QWEN3" >&2
     exit 1
 fi
 if [ ! -x "$DIT_VAE" ]; then
-    echo "Error: dit-vae binary not found at $DIT_VAE" >&2
+    echo "Error: ace-synth binary not found at $DIT_VAE" >&2
     exit 1
 fi
 
@@ -206,12 +206,12 @@ cat "$REQUEST_FILE"
 START_TIME=$(date +%s)
 
 echo ""
-echo "=== Stage 1: ace-qwen3 (LLM) ==="
+echo "=== Stage 1: ace-lm (LLM) ==="
 "$ACE_QWEN3" \
     --request "$REQUEST_FILE" \
     --model   "$MODEL_DIR/acestep-5Hz-lm-4B-Q8_0.gguf"
 
-# ace-qwen3 writes requestN.json alongside the input file
+# ace-lm writes requestN.json alongside the input file
 REQUEST0_FILE="${REQUEST_FILE%.json}0.json"
 
 # ---------------------------------------------------------------------------
@@ -219,14 +219,14 @@ REQUEST0_FILE="${REQUEST_FILE%.json}0.json"
 # ---------------------------------------------------------------------------
 
 echo ""
-echo "=== Stage 2: dit-vae (DiT + VAE) ==="
+echo "=== Stage 2: ace-synth (DiT + VAE) ==="
 "$DIT_VAE" \
     --request      "$REQUEST0_FILE" \
     --text-encoder "$MODEL_DIR/Qwen3-Embedding-0.6B-Q8_0.gguf" \
     --dit          "$MODEL_DIR/acestep-v15-turbo-Q8_0.gguf" \
     --vae          "$MODEL_DIR/vae-BF16.gguf"
 
-# dit-vae writes requestN0.mp3 alongside the request0.json file
+# ace-synth writes requestN0.mp3 alongside the request0.json file
 OUTPUT_MP3="${REQUEST0_FILE%.json}0.mp3"
 
 echo "=== Directory listings (pre-move) ==="
@@ -240,7 +240,7 @@ ls -lh /github/workspace || echo "(ls /github/workspace failed)"
 # ---------------------------------------------------------------------------
 
 if [ ! -f "$OUTPUT_MP3" ]; then
-    echo "Error: expected output MP3 not found at ${OUTPUT_MP3} — dit-vae may have failed or written to a different path" >&2
+    echo "Error: expected output MP3 not found at ${OUTPUT_MP3} — ace-synth may have failed or written to a different path" >&2
     echo "WORK_DIR contents:" >&2
     ls -lh "$WORK_DIR" >&2
     ls -lh /tmp >&2

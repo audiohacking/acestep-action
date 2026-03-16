@@ -23,7 +23,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------------------------------------
-# Build ace-qwen3 and dit-vae from audiohacking/acestep.cpp
+# Build acestep.cpp from audiohacking/acestep.cpp
 # ---------------------------------------------------------------------------
 RUN git clone --depth 1 --recurse-submodules \
         https://github.com/audiohacking/acestep.cpp /tmp/acestep-cpp && \
@@ -34,7 +34,7 @@ RUN git clone --depth 1 --recurse-submodules \
     cmake --install . --prefix /usr/local && \
     ldconfig && \
     mkdir -p /action/bin && \
-    cp ace-qwen3 dit-vae ace-understand /action/bin/ && \
+    cp ace-lm ace-synth ace-understand /action/bin/ && \
     cd / && rm -rf /tmp/acestep-cpp
 
 # ---------------------------------------------------------------------------
